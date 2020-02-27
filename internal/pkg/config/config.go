@@ -188,7 +188,7 @@ func (t *Config) validate() error {
 	return nil
 }
 
-func validateEnhance(method string, enhs []tEnhance) error {
+func validateEnhance(method string, enhs []Enhance) error {
 	for _, enh := range enhs {
 		if len(enh.IncomingFields) != len(enh.ForwardFields) {
 			return fmt.Errorf("%s: count(Enhance.IncomingFields) != count(Enhance.ForwardFields) [%d != %d]", method, len(enh.IncomingFields), len(enh.ForwardFields))
@@ -212,7 +212,7 @@ func validateEnhance(method string, enhs []tEnhance) error {
 	return nil
 }
 
-// Read
+// Read reads config
 func Read(fname string) (*Config, error) {
 	// pass secrets through env
 	conf, err := ioutil.ReadFile(fname)
@@ -231,7 +231,7 @@ func Read(fname string) (*Config, error) {
 
 	var cfg Config
 	if err := json.Unmarshal(conf, &cfg); err != nil {
-		return err
+		return nil, err
 	}
 
 	for i, p := range cfg.Methods {
@@ -242,10 +242,10 @@ func Read(fname string) (*Config, error) {
 	}
 
 	if err = cfg.validate(); err != nil {
-		return err
+		return nil, err
 	}
 
 	//logger.Log("msg", "debug level", "debug", settings.Debug)
 
-	return nil
+	return &cfg, nil
 }
