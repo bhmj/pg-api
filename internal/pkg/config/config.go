@@ -125,8 +125,8 @@ func (t *Config) getName(fieldName string) string {
 
 func (t *Config) validate() error {
 
-	if t.DBGroup.Read.MaxConn <= 0 {
-		return fmt.Errorf("%s should be > 0", t.getName("MaxConn"))
+	if t.DBGroup.Read.MaxConn < 0 {
+		return fmt.Errorf("%s should be >= 0", t.getName("MaxConn"))
 	}
 
 	if t.Service.Version == "" {

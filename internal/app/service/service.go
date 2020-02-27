@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/bhmj/pg-api/internal/pkg/config"
 )
@@ -23,7 +24,7 @@ func New(cfg *config.Config) Service {
 
 func (s *service) Run() error {
 	http.HandleFunc("/", handler) // each request calls handler
-	return http.ListenAndServe("localhost:8000", nil)
+	return http.ListenAndServe("localhost:"+strconv.Itoa(s.cfg.HTTP.Port), nil)
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
