@@ -1,12 +1,15 @@
 package service
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/bhmj/pg-api/internal/pkg/config"
 )
 
 // Service is an interface
 type Service interface {
-	Run()
+	Run() error
 }
 
 type service struct {
@@ -18,6 +21,11 @@ func New(cfg *config.Config) Service {
 	return &service{cfg: cfg}
 }
 
-func (s *service) Run() {
-	return
+func (s *service) Run() error {
+	http.HandleFunc("/", handler) // each request calls handler
+	return http.ListenAndServe("localhost:8000", nil)
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "URL.Path = %q\n", r.URL.Path)
 }
