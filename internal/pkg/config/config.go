@@ -8,6 +8,7 @@ import (
 	"os"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/bhmj/pg-api/internal/pkg/tag"
@@ -142,7 +143,7 @@ func (t *Config) validate() error {
 
 	// TODO: Remove this check when cache logic will be implemented
 	if t.Cache.Enable {
-		logger.Log("msg", "cache doesn't work right now")
+		//logger.Log("msg", "cache doesn't work right now")
 	}
 
 	if err := validateEnhance("General", t.General.Enhance); err != nil {
@@ -187,6 +188,30 @@ func (t *Config) validate() error {
 	return nil
 }
 
+func validateEnhance(method string, enhs []tEnhance) error {
+	for _, enh := range enhs {
+		if len(enh.IncomingFields) != len(enh.ForwardFields) {
+			return fmt.Errorf("%s: count(Enhance.IncomingFields) != count(Enhance.ForwardFields) [%d != %d]", method, len(enh.IncomingFields), len(enh.ForwardFields))
+		}
+		for _, fw := range enh.ForwardFields {
+			if fw == "[]" && len(enh.ForwardFields) > 1 {
+				return fmt.Errorf("%s: \"[]\" must be the only element in Enhance.ForwardFields", method)
+			}
+		}
+		rx, _ := regexp.Compile(`%\d+`)
+		for _, tr := range enh.TransferFields {
+			for _, match := range rx.FindAllString(tr.From, -1) {
+				idx, _ := strconv.Atoi(strings.Replace(match, "%", "", -1))
+				if idx <= 0 || idx > len(enh.ForwardFields) {
+					return fmt.Errorf("%s: unmatched wildcard \"%s\" in \"%s\"", method, match, tr.From)
+				}
+			}
+
+		}
+	}
+	return nil
+}
+
 // Read
 func Read(fname string) (*Config, error) {
 	// pass secrets through env
@@ -220,7 +245,7 @@ func Read(fname string) (*Config, error) {
 		return err
 	}
 
-	logger.Log("msg", "debug level", "debug", settings.Debug)
+	//logger.Log("msg", "debug level", "debug", settings.Debug)
 
 	return nil
 }
