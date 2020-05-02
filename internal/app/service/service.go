@@ -1,11 +1,13 @@
 package service
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
+	"sync"
 
+	"github.com/bhmj/pg-api/internal/app/handle"
 	"github.com/bhmj/pg-api/internal/pkg/config"
+	"github.com/bhmj/pg-api/internal/pkg/log"
 )
 
 // Service is an interface
@@ -15,18 +17,18 @@ type Service interface {
 
 type service struct {
 	cfg *config.Config
+	log log.Logger
 }
 
 // New creates service
-func New(cfg *config.Config) Service {
-	return &service{cfg: cfg}
+func New(cfg *config.Config, log log.Logger) Service {
+	return &service{cfg: cfg, log: log}
 }
 
 func (s *service) Run() error {
+	var wg sync.WaitGroup
+	handler := handle.Root(s.cfg, s.log, &wg)
 	http.HandleFunc("/", handler) // each request calls handler
-	return http.ListenAndServe("localhost:"+strconv.Itoa(s.cfg.HTTP.Port), nil)
-}
-
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "URL.Path = %q\n", r.URL.Path)
+	err := http.ListenAndServe("localhost:"+strconv.Itoa(s.cfg.HTTP.Port), nil)
+	return err
 }

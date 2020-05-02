@@ -66,7 +66,8 @@ type Config struct {
 		UseSSL    bool
 		Procedure string
 	}
-	Debug int
+	Debug    int
+	LogLevel uint // 0,1,2,3 = none, errors, warnings, verbose
 	// TODO: add pid settings
 }
 
@@ -84,19 +85,21 @@ type Database struct {
 
 // MethodConfig defines methods
 type MethodConfig struct {
-	Name         []string         // method name
-	FinalizeName []string         // finalizing method name (may be empty)
-	VersionFrom  int              // method version which other params are applied from
-	Convention   string           // calling convention
-	ContentType  string           // return content type
-	NameMatch    []*regexp.Regexp // method mask(s) -- runtime
-	Strict       *NullableBool    // use strict version control istead of dispatched call on DB side (soft backward compatibility)
-	Enhance      []Enhance        // enhance data using third-party service(s)
-	Postproc     []Enhance        // data postprocessing using third-party service(s)
-	HeadersPass  []struct {       // pass specified headers into proc
+	Name         []string   // method name
+	VersionFrom  int        // method version which other params are applied from
+	FinalizeName []string   // finalizing method name (omittable)
+	Convention   string     // calling convention: POST, CRUD (default is CRUD)
+	ContentType  string     // return content type (default is application/json)
+	Enhance      []Enhance  // enhance data using external service(s)
+	Postproc     []Enhance  // data postprocessing using external service(s)
+	HeadersPass  []struct { // pass specified headers into proc
 		Header    string
 		FieldName string
 	}
+	// runtime
+	NameMatch []*regexp.Regexp // method mask(s) -- runtime
+	// DELETE:
+	// Strict       *NullableBool // use strict version control istead of dispatched call on DB side (soft backward compatibility)
 }
 
 // Enhance methods
