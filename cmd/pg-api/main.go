@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/bhmj/pg-api/internal/app/service"
+	"github.com/bhmj/pg-api/internal/app/app"
 	"github.com/bhmj/pg-api/internal/pkg/config"
 	"github.com/bhmj/pg-api/internal/pkg/env"
 	"github.com/bhmj/pg-api/internal/pkg/log"
-	//"github.com/go-kit/kit/log"
 )
 
 const (
@@ -22,10 +21,13 @@ func main() {
 
 	flag.Parse()
 
+	cpath := env.GetString(envConfigPath, flag.Arg(0))
+
 	fmt.Printf("PostgreSQL web API service ver. %s\n", appVersion)
 	fmt.Printf("Current directory is %s\n", env.GetCurrentDir())
+	fmt.Printf("Config path is %s\n", cpath)
 
-	cfg, err := config.Read(env.GetString(envConfigPath, flag.Arg(0)))
+	cfg, err := config.Read(cpath)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
@@ -34,10 +36,9 @@ func main() {
 	logger, err := log.New(cfg.LogLevel)
 	if err != nil {
 		fmt.Println(err.Error())
-		//logger.Log("msg", "failed to load config", "err", err)
 		os.Exit(1)
 	}
+	defer logger.L().Sync()
 
-	srv := service.New(cfg, logger)
-	fmt.Println(srv.Run())
+	app.New(cfg, logger).Run()
 }

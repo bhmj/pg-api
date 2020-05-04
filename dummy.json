@@ -1,0 +1,12 @@
+{
+	"HTTP": {
+		"Port": 8080,
+		"Endpoint": "api",
+		"CORS": true
+	},
+	"Service": {
+		"Version": "1.0.0",
+		"Name": "dummy"
+	},
+	"Debug": 3
+}

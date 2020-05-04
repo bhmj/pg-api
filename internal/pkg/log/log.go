@@ -7,11 +7,11 @@ import (
 
 // Logger implements logging functionality
 type Logger interface {
-	Log() *zap.Logger
+	L() *zap.SugaredLogger
 }
 
 type logger struct {
-	l *zap.Logger
+	l *zap.SugaredLogger
 }
 
 // New returns new logger
@@ -27,14 +27,15 @@ func New(level uint) (Logger, error) {
 		level = 1
 	}
 	config.Level.SetLevel([]zapcore.Level{zap.FatalLevel, zap.ErrorLevel, zap.WarnLevel, zap.DebugLevel}[level])
+	config.Encoding = "json"
 
 	lg, err := config.Build()
 	if err != nil {
 		return nil, err
 	}
-	return &logger{l: lg}, nil
+	return &logger{l: lg.Sugar()}, nil
 }
 
-func (l *logger) Log() *zap.Logger {
+func (l *logger) L() *zap.SugaredLogger {
 	return l.l
 }

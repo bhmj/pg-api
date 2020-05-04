@@ -26,22 +26,25 @@ var RegexpMap = map[string]*regexp.Regexp{
 // NullableBool is what the name says
 type NullableBool bool
 
+// HTTP defines server parameters
+type HTTP struct {
+	Endpoint    string
+	Port        int
+	UseSSL      bool
+	SSLCert     string
+	SSLKey      string
+	AccessFiles []string
+	CORS        bool
+}
+
 // Config contains all parameters
 type Config struct {
-	HTTP struct {
-		Endpoint    string
-		Port        int
-		UseSSL      bool
-		SSLCert     string
-		SSLKey      string
-		AccessFiles []string
-		CORS        bool
+	HTTP    HTTP     // HTTP params + API endpoint
+	DBGroup struct { // Database connections
+		Read  Database // Read database params
+		Write Database // Write database params
 	}
-	DBGroup struct {
-		Write Database
-		Read  Database
-	}
-	Cache struct {
+	Cache struct { //
 		Enable bool
 		TTL    int
 	}
@@ -49,11 +52,20 @@ type Config struct {
 		Name       string
 		Version    string
 		Prometheus struct {
-			Start float64
-			Width float64
-			Count int
+			Buckets []float64
+			Start   float64
+			Width   float64
+			Count   int
 		}
 		Log string
+	}
+	Auth struct {
+		CookieName string // name of the cookie containing token
+		Unescaped  bool   // in a rare case of storing unescaped cookie
+		Offset     int    // defines a substring offset
+		Separator  string // defines a substring separator
+		Part       int    // defines a substring part number
+		Procedure  string // user retrieval procedure as in "select user_id from Procedure(substring)")
 	}
 	General MethodConfig
 	Methods []MethodConfig `json:",omitempty"`
@@ -85,21 +97,16 @@ type Database struct {
 
 // MethodConfig defines methods
 type MethodConfig struct {
-	Name         []string   // method name
-	VersionFrom  int        // method version which other params are applied from
-	FinalizeName []string   // finalizing method name (omittable)
-	Convention   string     // calling convention: POST, CRUD (default is CRUD)
-	ContentType  string     // return content type (default is application/json)
-	Enhance      []Enhance  // enhance data using external service(s)
-	Postproc     []Enhance  // data postprocessing using external service(s)
-	HeadersPass  []struct { // pass specified headers into proc
-		Header    string
-		FieldName string
-	}
+	Name         []string     // method name
+	VersionFrom  int          // method version which other params are applied from
+	FinalizeName []string     // finalizing method name (omittable)
+	Convention   string       // calling convention: POST, CRUD (default is CRUD)
+	ContentType  string       // return content type (default is application/json)
+	Enhance      []Enhance    // enhance data using external service(s)
+	Postproc     []Enhance    // data postprocessing using external service(s)
+	HeadersPass  []HeaderPass // pass specified headers into proc
 	// runtime
 	NameMatch []*regexp.Regexp // method mask(s) -- runtime
-	// DELETE:
-	// Strict       *NullableBool // use strict version control istead of dispatched call on DB side (soft backward compatibility)
 }
 
 // Enhance methods
@@ -113,6 +120,12 @@ type Enhance struct {
 		From string // jsonpath, based on root
 		To   string // jsonpath, based on current node
 	}
+}
+
+// HeaderPass defines Header -> FieldName mapping
+type HeaderPass struct {
+	Header    string
+	FieldName string
 }
 
 func (t *Config) getName(fieldName string) string {
@@ -141,7 +154,11 @@ func (t *Config) validate() error {
 			return fmt.Errorf("%s can contain only [a-zA-Z_-]", t.getName("Service.Name"))
 		}
 	} else {
-		return fmt.Errorf("Service.Name is not defined, ")
+		return fmt.Errorf("Service.Name is not specified")
+	}
+
+	if t.HTTP.Endpoint == "" {
+		return fmt.Errorf("HTTP.Endpoint is not specified")
 	}
 
 	// TODO: Remove this check when cache logic will be implemented
@@ -192,16 +209,19 @@ func (t *Config) validate() error {
 }
 
 func validateEnhance(method string, enhs []Enhance) error {
+	rx, _ := regexp.Compile(`%\d+`)
 	for _, enh := range enhs {
+		// Method[:].Enhance.IncomingFields must match Method[:].Enhance.ForwardFields
 		if len(enh.IncomingFields) != len(enh.ForwardFields) {
 			return fmt.Errorf("%s: count(Enhance.IncomingFields) != count(Enhance.ForwardFields) [%d != %d]", method, len(enh.IncomingFields), len(enh.ForwardFields))
 		}
+		// ForwardFields array mode
 		for _, fw := range enh.ForwardFields {
 			if fw == "[]" && len(enh.ForwardFields) > 1 {
 				return fmt.Errorf("%s: \"[]\" must be the only element in Enhance.ForwardFields", method)
 			}
 		}
-		rx, _ := regexp.Compile(`%\d+`)
+		// TransferFields[:].From may contain references to ForwardFields[]
 		for _, tr := range enh.TransferFields {
 			for _, match := range rx.FindAllString(tr.From, -1) {
 				idx, _ := strconv.Atoi(strings.Replace(match, "%", "", -1))
@@ -209,10 +229,65 @@ func validateEnhance(method string, enhs []Enhance) error {
 					return fmt.Errorf("%s: unmatched wildcard \"%s\" in \"%s\"", method, match, tr.From)
 				}
 			}
-
 		}
 	}
 	return nil
+}
+
+// MethodProperties returns completed MethodConfig for given version + method
+func (t *Config) MethodProperties(method string, version int) MethodConfig {
+
+	bestVer := 0         // The best version number isn't yet selected
+	var bestVerIdx int   // bestVer index in t.Methods
+	var finName []string // Function name to be selected from FinalizeName; this name will be the only element in the slice
+	var finNameIdx int   // finName index in selected FinalizeName
+	// Other params default values
+	conv := t.General.Convention
+	ctype := t.General.ContentType
+	enhnc := t.General.Enhance
+	postpr := t.General.Postproc
+	hpass := t.General.HeadersPass
+
+	// The best version number is the maximum one of all version numbers
+	// in t.Methods that are not greater than version number in HTTP request.
+	// t.Methods[i].VersionFrom is always > 0 (see function readConfig).
+	for idx, ms := range t.Methods {
+		for n, mname := range ms.NameMatch {
+			if mname.MatchString(method) {
+				if ms.VersionFrom <= version && ms.VersionFrom > bestVer {
+					bestVer = ms.VersionFrom
+					bestVerIdx = idx
+					finNameIdx = n
+				}
+			}
+		}
+	}
+
+	// If in the end the best version number was selected from t.Methods
+	if bestVer > 0 {
+		bestMethod := t.Methods[bestVerIdx]
+		if len(bestMethod.FinalizeName) > 0 {
+			finName = make([]string, 1)
+			finName[0] = bestMethod.FinalizeName[finNameIdx]
+		}
+		if bestMethod.Convention != "" {
+			conv = bestMethod.Convention
+		}
+		if bestMethod.ContentType != "" {
+			ctype = bestMethod.ContentType
+		}
+		if len(bestMethod.Enhance) > 0 {
+			enhnc = append(enhnc, bestMethod.Enhance...)
+		}
+		if len(bestMethod.Postproc) > 0 {
+			postpr = append(postpr, bestMethod.Postproc...)
+		}
+		if len(bestMethod.HeadersPass) > 0 {
+			hpass = bestMethod.HeadersPass
+		}
+	}
+
+	return MethodConfig{FinalizeName: finName, Convention: conv, ContentType: ctype, Enhance: enhnc, Postproc: postpr, HeadersPass: hpass}
 }
 
 // Read reads config
@@ -237,12 +312,14 @@ func Read(fname string) (*Config, error) {
 		return nil, err
 	}
 
+	// defaults and adjustments
 	for i, p := range cfg.Methods {
 		// If version number of method p is not explicitly specified
 		if p.VersionFrom == 0 {
 			cfg.Methods[i].VersionFrom = 1
 		}
 	}
+	cfg.LogLevel = uint(cfg.Debug) // legacy
 
 	if err = cfg.validate(); err != nil {
 		return nil, err
