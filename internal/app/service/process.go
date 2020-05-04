@@ -48,6 +48,22 @@ func (s *service) processQuery(r *http.Request) (code int, err error) {
 		body = s.enhanceData(body, parsed.Enhance, 1*time.Second)
 	}
 
+	db := s.dbr
+	schema := s.cfg.DBGroup.Read.Schema
+	if writeDB[s.method] {
+		db = s.dbw
+		schema = s.cfg.DBGroup.Write.Schema
+	}
+
+	query := s.prepareSQL(schema, parsed, string(body), 0)
+
+	var result string
+	err = s.makeDBRequest(db, query, &result)
+	if err != nil {
+		code = http.StatusInternalServerError
+		return
+	}
+
 	code = http.StatusOK
 	err = nil
 	return

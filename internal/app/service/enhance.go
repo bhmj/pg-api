@@ -43,7 +43,7 @@ next:
 					s.log.L().Errorf("jsonslice fail: %s: %s on %s", err.Error(), key, string(tmp), key)
 					continue next
 				}
-				if val[0] == '"' { // If val is framed with double quotes
+				if val[0] == '"' { // If val is in double quotes
 					val = val[1 : len(val)-1] // Get rid of quotes
 				}
 				vals[key] = val
@@ -66,12 +66,17 @@ next:
 
 		// Extract draft of external service name from enh.URL
 		submatches := regexpMap["extServiceName"].FindAllStringSubmatch(enh.URL, -1)
-		extServiceName := submatches[0][0]
-		// Split extServiceName into substrings of [:word:] class symbols (a-zA-Z0-9_)
-		substrings := regexpMap["splitExtServName"].FindAllString(extServiceName, -1)
-		// Finally concatenate substrings with "_" separator into extServiceName
-		extServiceName = strings.Join(substrings, "_")
-
+		// http://domain.com/api/v1/some/service?param=foo -> api/v1/some/service
+		extServiceName := "external"
+		if submatches != nil {
+			extServiceName := submatches[0][1]
+			// Split extServiceName into substrings of [:word:] class symbols (a-zA-Z0-9_)
+			// api/v1/some/service -> ["api","v1","some","service"]
+			substrings := regexpMap["splitExtServiceName"].FindAllString(extServiceName, -1)
+			// Finally concatenate substrings with "_" separator into extServiceName
+			// ["api","v1","some","service"] -> api_v1_some_service
+			extServiceName = strings.Join(substrings, "_")
+		}
 		data, flds, err := s.queryExternal(enh, tmp, timeout)
 		if err != nil {
 			s.log.L().Errorf("queryExternal: %s", err.Error())

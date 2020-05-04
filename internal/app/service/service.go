@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bhmj/pg-api/internal/pkg/config"
+	"github.com/bhmj/pg-api/internal/pkg/db"
 	"github.com/bhmj/pg-api/internal/pkg/log"
 	"github.com/bhmj/pg-api/internal/pkg/metrics"
 )
@@ -26,8 +27,8 @@ type service struct {
 	readiness Readiness
 	metrics   metrics.Metrics
 	// DB connection
-	dbr sql.DB
-	dbw sql.DB
+	dbr *sql.DB
+	dbw *sql.DB
 	// runtime params
 	version int    // API version
 	method  string // HTTP method
@@ -43,13 +44,23 @@ type Service interface {
 
 // NewService returns new service
 func NewService(ctx context.Context, cfg *config.Config, log log.Logger, rd Readiness) Service {
-	return &service{
+	srv := &service{
 		ctx:       ctx,
 		cfg:       cfg,
 		log:       log,
 		readiness: rd,
 		metrics:   metrics.NewMetrics(cfg.Service.Name, cfg.Service.Prometheus.Buckets),
 	}
+	// prepare database connections
+	srv.dbr, _ = db.SetupDatabase(cfg.DBGroup.Read)
+	dbWriteSettings, same := cfg.GetDBWrite()
+	cfg.DBGroup.Write = dbWriteSettings
+	if !same {
+		srv.dbw, _ = db.SetupDatabase(dbWriteSettings)
+	} else {
+		srv.dbw = srv.dbr
+	}
+	return srv
 }
 
 // Endpoint implements service logic

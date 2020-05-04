@@ -11,30 +11,21 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/bhmj/pg-api/internal/pkg/str"
 	"github.com/bhmj/pg-api/internal/pkg/tag"
 )
 
-// RegexpMap represents special mappings
-var RegexpMap = map[string]*regexp.Regexp{
-	"parseUrl":         regexp.MustCompile(`(?i)(\w+)(?:/(\d+)?)`),
-	"extServiceName":   regexp.MustCompile(`^.+://[^/]+/([^/?]+(?:/[^/?]+)*)/?(?:\?[^?]*)?$`),
-	"splitExtServName": regexp.MustCompile(`\w+`),
-	"version":          regexp.MustCompile(`v(\d+)/`),
-	"validServiceName": regexp.MustCompile(`^[A-Za-z_\-]+$`),
-}
-
-// NullableBool is what the name says
-type NullableBool bool
+var validServiceName *regexp.Regexp = regexp.MustCompile(`^[A-Za-z_\-]+$`)
 
 // HTTP defines server parameters
 type HTTP struct {
-	Endpoint    string
-	Port        int
-	UseSSL      bool
-	SSLCert     string
-	SSLKey      string
-	AccessFiles []string
-	CORS        bool
+	Endpoint    string   // API endpoint
+	Port        int      // port to listen
+	UseSSL      bool     // use SSL
+	SSLCert     string   // SSL certificate file path
+	SSLKey      string   // SSL private key file path
+	AccessFiles []string // list of files containing key + name for basic HTTP key auth
+	CORS        bool     // allow CORS
 }
 
 // Config contains all parameters
@@ -150,7 +141,7 @@ func (t *Config) validate() error {
 	}
 
 	if t.Service.Name != "" {
-		if !RegexpMap["validServiceName"].MatchString(t.Service.Name) {
+		if !validServiceName.MatchString(t.Service.Name) {
 			return fmt.Errorf("%s can contain only [a-zA-Z_-]", t.getName("Service.Name"))
 		}
 	} else {
@@ -328,4 +319,18 @@ func Read(fname string) (*Config, error) {
 	//logger.Log("msg", "debug level", "debug", settings.Debug)
 
 	return &cfg, nil
+}
+
+// GetDBWrite returns config for write db and bool indicating it is the same db as read db
+func (t *Config) GetDBWrite() (Database, bool) {
+	v := Database{}
+	v.ConnString = str.Scoalesce(t.DBGroup.Write.ConnString, t.DBGroup.Read.ConnString)
+	v.Host = str.Scoalesce(t.DBGroup.Write.Host, t.DBGroup.Read.Host)
+	v.Port = str.Icoalesce(t.DBGroup.Write.Port, t.DBGroup.Read.Port)
+	v.Name = str.Scoalesce(t.DBGroup.Write.Name, t.DBGroup.Read.Name)
+	v.User = str.Scoalesce(t.DBGroup.Write.User, t.DBGroup.Read.User)
+	v.Password = str.Scoalesce(t.DBGroup.Write.Password, t.DBGroup.Read.Password)
+	v.Schema = str.Scoalesce(t.DBGroup.Write.Schema, t.DBGroup.Read.Schema)
+	v.MaxConn = str.Icoalesce(t.DBGroup.Write.MaxConn, t.DBGroup.Read.MaxConn)
+	return v, (v == t.DBGroup.Read)
 }
