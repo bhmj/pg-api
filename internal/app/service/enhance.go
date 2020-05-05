@@ -107,7 +107,7 @@ next:
 			vobj[dst.To] = value
 		}
 
-		s.metrics.Score(s.method, s.path, extServiceName, startTime, nil)
+		s.metrics.Score(s.method, s.vpath, extServiceName, startTime, nil)
 	}
 
 	body, _ = json.Marshal(obj)

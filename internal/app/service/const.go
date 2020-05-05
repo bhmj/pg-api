@@ -4,13 +4,7 @@ import (
 	"regexp"
 )
 
-const (
-	contentTypeJSON    = "application/json"
-	contentTypePlain   = "text/plain; charset=utf-8"
-	defaultContentType = contentTypePlain
-)
-
-//
+// used regular expressions
 var regexpMap = map[string]*regexp.Regexp{
 	"parseUrl":            regexp.MustCompile(`(?i)(\w+)(?:/(\d+)?)`),                            // (word/)
 	"extServiceName":      regexp.MustCompile(`^.+://[^/]+/([^/?]+(?:/[^/?]+)*)/?(?:\?[^?]*)?$`), // something://FOO[/bar/baz]/[?some=params]

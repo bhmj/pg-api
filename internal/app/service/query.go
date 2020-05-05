@@ -61,7 +61,7 @@ func (s *service) prepareSQL(schema string, parsed ParsedURL, body string, id in
 // makeDBRequest performs request to database
 func (s *service) makeDBRequest(db *sql.DB, query string, result *string) (err error) {
 	t := time.Now()
-	defer s.metrics.Score(s.method, s.path, "db", t, &err)
+	defer s.metrics.Score(s.method, s.vpath, "db", t, &err)
 	rows, err := db.Query(query)
 	if err != nil {
 		return

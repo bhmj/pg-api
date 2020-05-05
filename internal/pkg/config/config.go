@@ -17,6 +17,13 @@ import (
 
 var validServiceName *regexp.Regexp = regexp.MustCompile(`^[A-Za-z_\-]+$`)
 
+const (
+	contentTypeJSON    = "application/json"
+	contentTypePlain   = "text/plain; charset=utf-8"
+	defaultContentType = contentTypeJSON
+	defaultConvention  = "CRUD"
+)
+
 // HTTP defines server parameters
 type HTTP struct {
 	Endpoint    string   // API endpoint
@@ -309,6 +316,8 @@ func Read(fname string) (*Config, error) {
 		if p.VersionFrom == 0 {
 			cfg.Methods[i].VersionFrom = 1
 		}
+		cfg.Methods[i].Convention = str.Scoalesce(p.Convention, defaultConvention)
+		cfg.Methods[i].ContentType = str.Scoalesce(p.ContentType, defaultContentType)
 	}
 	cfg.LogLevel = uint(cfg.Debug) // legacy
 
