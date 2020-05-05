@@ -9,9 +9,18 @@ import (
 	"time"
 
 	"github.com/bhmj/pg-api/internal/pkg/config"
+	"github.com/bhmj/pg-api/internal/pkg/str"
 )
 
-func (s *service) processQuery(r *http.Request) (code int, err error) {
+// queryResult holds query result
+type queryResult struct {
+	Code    int    `json:"httpcode"` // synonyms
+	ErrCode int    `json:"errcode"`  // synonyms
+	Error   string `json:"error"`
+	ID      int64  `json:"id"`
+}
+
+func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int, err error) {
 	code = http.StatusBadRequest
 	// parse URL
 	parsed, err := s.parseURL(s.path, s.version, s.cfg)
@@ -64,7 +73,71 @@ func (s *service) processQuery(r *http.Request) (code int, err error) {
 		return
 	}
 
-	code = http.StatusOK
+	// error + http code from query
+	var qRes queryResult
+	err = json.Unmarshal([]byte(result), &qRes)
+	if qRes.ErrCode > qRes.Code {
+		qRes.Code = qRes.ErrCode
+	}
+	if qRes.Error != "" {
+		s.log.L().Errorf("error: %s, query: %s", qRes.Error, query)
+		code = qRes.Code
+	}
+	// legacy: some old fns return just ID
+	if err != nil {
+		i, err := strconv.ParseInt(result, 10, 64)
+		if err == nil {
+			qRes.ID = i
+		}
+	}
+
+	rawResult := []byte(result)
+	if len(parsed.FinalizeName) == 0 {
+		if len(parsed.Postproc) > 0 && s.method == "POST" {
+			go func(rawRes []byte, postproc []config.Enhance) {
+				_ = s.enhanceData(rawRes, postproc, 60*time.Second)
+			}(rawResult, parsed.Postproc)
+		}
+	} else {
+		go func(
+			rawBody []byte,
+			parsed ParsedURL,
+			id int64,
+		) {
+			var body []byte
+			var result string
+
+			if len(parsed.Enhance) > 0 && s.method == "POST" {
+				body = s.enhanceData(rawBody, parsed.Enhance, 60*time.Second)
+			}
+
+			query := s.prepareSQL(s.cfg.DBGroup.Write.Schema, parsed, string(body), id)
+			err = s.makeDBRequest(s.dbw, query, &result)
+			if err != nil {
+				s.log.L().Errorf("finalizing query: %s, error: %s", query, err.Error())
+			} else {
+				s.log.L().Infof("finalizing query result: %s", result)
+			}
+			if len(parsed.Postproc) > 0 && s.method == "POST" {
+				_ = s.enhanceData([]byte(result), parsed.Postproc, 60*time.Second)
+			}
+		}(body, parsed, qRes.ID)
+	}
+
+	// http response code
+	code = qRes.Code
+	if code == 0 {
+		code = httpCodes[s.method]
+	}
+
+	if s.cfg.HTTP.CORS {
+		s.allowCORS(w)
+	}
+	w.Header().Set("Content-Type", str.Scoalesce(parsed.ContentType, "application/json"))
+	w.Header().Set("Content-Length", strconv.Itoa(len(rawResult)))
+	w.WriteHeader(code)
+	w.Write(rawResult)
+
 	err = nil
 	return
 }

@@ -111,7 +111,7 @@ func (s *service) Endpoint(w http.ResponseWriter, r *http.Request) {
 		s.method = "HIT"
 	}
 
-	code, err := s.processQuery(r)
+	code, err := s.processQuery(w, r)
 	if err != nil {
 		http.Error(w, err.Error(), code)
 		return
