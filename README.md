@@ -214,7 +214,7 @@ There are two possible calling conventions: `POST` and `CRUD`
 It is possible to get data from several services successively. The data received from one service will be available for sending in the next one and so on.
 
 Section example:   
-```json
+```Go
 "Enhance": [ // array: may contain many external service definitions
     {
         "URL"            : "http://some.service/api/",    // external service URL
