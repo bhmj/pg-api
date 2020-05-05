@@ -31,20 +31,20 @@ $ go build .
 create config file `dummy.json`:
 ```json
 {
-	"Service": {
-		"Version": "1.0.0",
-		"Name": "dummy"
-	},
-	"HTTP": {
-		"Port": 8080,
-		"Endpoint": "api"
-	},
-	"DBGroup": {
-		"Read": {
+    "Service": {
+        "Version": "1.0.0",
+        "Name": "dummy"
+    },
+    "HTTP": {
+        "Port": 8080,
+        "Endpoint": "api"
+    },
+    "DBGroup": {
+        "Read": {
             "ConnString": "host=localhost port=5432 dbname=postgres user=postgres password=postgres sslmode=disable",
-			"Schema": "api"
-		}
-	}
+            "Schema": "api"
+        }
+    }
 }
 ```
 
@@ -132,20 +132,20 @@ Idle connections : `none`
 ### HTTP endpoint
 ```Go
 HTTP struct {
-	Endpoint    string   // API endpoint
-	Port        int      // port to listen to
-	UseSSL      bool     // use SSL
-	SSLCert     string   // SSL certificate file path
-	SSLKey      string   // SSL private key file path
-	AccessFiles []string // list of files containing key + name for basic HTTP key auth
-	CORS        bool     // allow CORS
+    Endpoint    string   // API endpoint
+    Port        int      // port to listen to
+    UseSSL      bool     // use SSL
+    SSLCert     string   // SSL certificate file path
+    SSLKey      string   // SSL private key file path
+    AccessFiles []string // list of files containing key + name for basic HTTP key auth
+    CORS        bool     // allow CORS
 }
 ```
 ### Database connection
 ```Go
 DBGroup struct {    // Database connections
-	Read  Database  // Read database params
-	Write Database  // Write database params (may omit if the same)
+    Read  Database  // Read database params
+    Write Database  // Write database params (may omit if the same)
 }
 ```
 ```Go
@@ -153,28 +153,28 @@ Database struct {
     ConnString string  // instant connection string
                        // OR
     Host       string  // parts
-	Port       int     // to be
-	Name       string  // combined
-	User       string  // at
-	Password   string  // runtime :)
-	Schema     string  // schema containing all the API functions
-	MaxConn    int     // set this to limit the number of open connections
+    Port       int     // to be
+    Name       string  // combined
+    User       string  // at
+    Password   string  // runtime :)
+    Schema     string  // schema containing all the API functions
+    MaxConn    int     // set this to limit the number of open connections
 }
 ```
 ### Methods and their properties
 
 ```Go
 MethodConfig struct {
-	Name         []string     // method name
-	VersionFrom  int          // method version which other params are applied from
-	FinalizeName []string     // finalizing method name (omittable)
-	Convention   string       // calling convention: POST, CRUD (default is CRUD)
-	ContentType  string       // return content type (default is application/json)
-	Enhance      []Enhance    // enhance data using external service(s)
-	Postproc     []Enhance    // data postprocessing using external service(s)
-	HeadersPass  []HeaderPass // pass specified headers into proc
+    Name         []string     // method name
+    VersionFrom  int          // method version which other params are applied from
+    FinalizeName []string     // finalizing method name (omittable)
+    Convention   string       // calling convention: POST, CRUD (default is CRUD)
+    ContentType  string       // return content type (default is application/json)
+    Enhance      []Enhance    // enhance data using external service(s)
+    Postproc     []Enhance    // data postprocessing using external service(s)
+    HeadersPass  []HeaderPass // pass specified headers into proc
 	// runtime
-	NameMatch []*regexp.Regexp // method mask(s) -- runtime
+    NameMatch []*regexp.Regexp // method mask(s) -- runtime
 }
 ```
 
@@ -188,8 +188,8 @@ It is possible to configure a passthrough for any number of headers (per method)
 
 ```Go
 HeaderPass struct {
-	Header    string  // header to pass
-	FieldName string  // field name in our incoming JSON
+    Header    string  // header to pass
+    FieldName string  // field name in our incoming JSON
 }
 ```
 
