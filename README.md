@@ -129,7 +129,7 @@ Prometheus buckets : `1ms to 5s logarithmic scale`
 Open connections : `unlimited`  
 Idle connections : `none`  
 
-### HTTP endpoint
+### HTTP section
 ```Go
 HTTP struct {
     Endpoint    string   // API endpoint
@@ -141,7 +141,16 @@ HTTP struct {
     CORS        bool     // allow CORS
 }
 ```
-### Database connection
+#### PG-API endpoints
+
+| Endpoint | Description |
+| --- | --- |
+| `/metrics` | Prometheus metrics |
+| `/ready` | Readiness probe for k8s. HTTP 200 for ok, 500 if not ready |
+| `/alive` | Liveness probe for k8s. HTTP 200 for ok, 500 if terminating |
+| `/{endpoint}/v1/*` | Main endpoint (see Calling conventions below) |
+
+### Database section
 ```Go
 DBGroup struct {    // Database connections
     Read  Database  // Read database params
@@ -161,7 +170,7 @@ Database struct {
     MaxConn    int     // set this to limit the number of open connections
 }
 ```
-### Methods and their properties
+### Methods section (and their properties)
 
 ```Go
 MethodConfig struct {
@@ -180,7 +189,7 @@ MethodConfig struct {
 
 #### Content type
 
-Default content-type is `application/json` but it is possible to set any other, like `application/xml`, `text/html`, `text/plain` and  include charset info if needed: `application/xml; charset="UTF-8"`
+Default content-type is `application/json` but it is possible to set any other, like `application/xml`, `text/html`, `text/plain` and also to include character set info if needed: `application/xml; charset="UTF-8"`
 
 #### Headers passthrough
 
@@ -193,9 +202,10 @@ HeaderPass struct {
 }
 ```
 
-#### Calling convention
+#### Calling convention types
 
 There are two possible calling conventions: `POST` and `CRUD`  
+
 `CRUD` (default):
 - GET method reads, POST, PUT, PATCH and DELETE write.
 - function suffixes: `get`, `ins`, `upd`, `pat` and `del` respectively.
@@ -253,12 +263,12 @@ You can specify common parameters in `General` section. Fields which are not spe
 |---|---|---|
 |**{endpoint}** | `$.HTTP.Endpoint` | usually "api" |
 |**{version}** | `v[0-9]+` | a mandatory version specifier |
-|**{path}** | `(/blabla/[0-9]*)+` | objects and ids |
+|**{path}** | `(/blabla/[0-9]*)+` | objects and their IDs |
 |**{params}** | `param=value & ...` | URL params |
 
 ### Translation rules in examples
 
-|**`CRUD`**:  |  |  |
+|**`CRUD`** :  |  |  |
 |---|--|---|
 |`GET /api/v1/foo/7/bar/9`| --> |`foo_bar_get(7,9)` |
 |`GET /api/v1/foo/bar/12` | --> | `foo_bar_get(0,12)` |
@@ -268,13 +278,18 @@ You can specify common parameters in `General` section. Fields which are not spe
 |`PUT /api/v3/foo/bar/12` | --> | `foo_bar_upd_v3(0,12,'{...}')` |
 |`DELETE /api/v3/foo/bar/12` | --> | `foo_bar_del_v3(0,12)` |  
 
-|**`POST`**:  |  |  |
+|**`POST`** :  |  |  |
 |---|--|---|
 |`POST /api/v1/foo/bar`| --> |`foo_bar(0,'{...}')` |
 |`POST /api/v1/foo/9/bar`| --> |`foo_bar(9,'{...}')` |
 |`POST /api/v3/profile?entry=FOO` | --> | `profile_v3('{"entry":"FOO", ...}')` |
-|`GET /api/v1/foo/bar` | --> | `foo_bar(0,0,'{...}')` |
-| NB: GET method not recommended | | |
+|`GET /api/v1/foo/bar`<br/>GET method not recommended! | --> | `foo_bar(0,0,'{...}')`<br/>Note: extra ID from implicit bar/{id} |
+
+## More examples
+
+See `examples/` directory for some real-life configuration files taken from producion environment.
+
+Disclaimer: All meaningful values in above examples have been replaced. All passwords, user names, server names and field names in above examples are entirely fictional.
 
 ## Changelog
 
@@ -289,7 +304,11 @@ You can specify common parameters in `General` section. Fields which are not spe
 - [x] CORS support
 - [x] headers passthrough
 - [x] key- of cookie based authorization
-- [x] MinIO support
+- [ ] MinIO support
+- [ ] Enhance[:].InArray
+- [ ] Enhance[:].HeadersToSend
+- [ ] tests!
+- [ ] more examples, explained
 - [ ] circuit breaker
 - [ ] CSV / XLSX export from table functions
 

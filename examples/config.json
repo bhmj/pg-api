@@ -1,0 +1,267 @@
+{
+	"HTTP": {
+		"Endpoint": "api",
+		"Port": 8080
+	},
+	"DBGroup": {
+		"Read": {
+			"Host": "db",
+			"Port": 5432,
+			"Name": "claim_db",
+			"User": "{{USERNAME}}",
+			"Password": "{{PASSWORD}}",
+			"Schema": "funcs"
+		},
+		"Write": {
+			"Host": "claim.master"
+		}
+	},
+	"Service": {
+		"Name": "claims",
+		"Version": "1.4.7"
+	},
+	"General": {
+		"Convention": "CRUD",
+		"ContentType": "application/json"
+	},
+	"Methods": [
+		{
+			"Name": [
+				"claim/$",
+				"defective/$"
+			],
+			"Enhance": [
+				{
+					"URL": "http://ru.goods-short/goods/ru/by-nm",
+					"Method": "GET",
+					"IncomingFields": [ "$.art_id", "$.size_id" ],
+					"ForwardFields": [ "ids", "sizes" ],
+					"TransferFields": [
+						{ "From": "$[0].brand", "To": "brand" },
+						{ "From": "$[0].name", "To": "name" },
+						{ "From": "$[0].sizes.%2.name", "To": "size" },
+						{ "From": "$[0].subject", "To": "subject_id" },
+						{ "From": "$[0].price", "To": "price_base" }
+					]
+				},
+				{
+					"URL": "http://{$.country}.goods-short/goods/{$.country}/by-nm",
+					"Method": "GET",
+					"Condition": "@.country != 'ru'",
+					"IncomingFields": [ "$.art_id" ],
+					"ForwardFields": [ "ids" ],
+					"TransferFields": [
+						{ "From": "$[0].price", "To": "price_base_local" }
+					]
+				},
+				{
+					"URL": "http://goods-api.content/api/v3/goods-cache/product",
+					"Method": "GET",
+					"IncomingFields": [ "$.art_id" ],
+					"ForwardFields": [ "artId" ],
+					"TransferFields": [
+						{ "From": "$.is.subjects", "To": "is_subjects" }
+					]
+				},
+				{
+					"URL": "http://storage-api.warehouse/api/v1/order_get_by_rid",
+					"Method": "POST",
+					"IncomingFields": [ "$.rid" ],
+					"ForwardFields": [ "rid" ],
+					"TransferFields": [
+						{ "From": "$.result.details[0].barcode", "To": "barcode" },
+						{ "From": "$.result.details[0].dt_delivery", "To": "dt_delivery" },
+						{ "From": "$.result.details[0].dt_order", "To": "dt_order" },
+						{ "From": "$.result.details[0].location", "To": "location" }
+					]
+				},
+				{
+					"URL": "http://predictor-api.ai:7055/predict/",
+					"Method": "POST",
+					"IncomingFields": [ "$.user_claim" ],
+					"ForwardFields": [ "text" ],
+					"TransferFields": [
+						{ "From": "$.type", "To": "predicted_type" }
+					]
+				}
+			]
+		},
+		{
+			"Name": [
+				"claim/$",
+				"defective/$"
+			],
+			"FinalizeName": [
+				"claim_final",
+				"claim_final"
+			],
+			"VersionFrom": 2,
+			"Enhance": [
+				{
+					"URL": "http://ru.goods-short/goods/ru/by-nm",
+					"Method": "GET",
+					"IncomingFields": [ "$.art_id", "$.size_id" ],
+					"ForwardFields": [ "ids", "sizes" ],
+					"TransferFields": [
+						{ "From": "$[0].brand", "To": "brand" },
+						{ "From": "$[0].name", "To": "name" },
+						{ "From": "$[0].sizes.%2.name", "To": "size" },
+						{ "From": "$[0].subject", "To": "subject_id" },
+						{ "From": "$[0].price", "To": "price_base" }
+					]
+				},
+				{
+					"URL": "http://{$.country}.goods-short/goods/{$.country}/by-nm",
+					"Method": "GET",
+					"Condition": "@.country != 'ru'",
+					"IncomingFields": [ "$.art_id" ],
+					"ForwardFields": [ "ids" ],
+					"TransferFields": [
+						{ "From": "$[0].price", "To": "price_base_local" }
+					]
+				},
+				{
+					"URL": "http://goods-api.content/api/v3/goods-cache/product",
+					"Method": "GET",
+					"IncomingFields": [ "$.art_id" ],
+					"ForwardFields": [ "artId" ],
+					"TransferFields": [
+						{ "From": "$.is.subjects", "To": "is_subjects" }
+					]
+				},
+				{
+					"URL": "http://storage-api.warehouse/api/v1/order_get_by_rid",
+					"Method": "POST",
+					"IncomingFields": [ "$.rid" ],
+					"ForwardFields": [ "rid" ],
+					"TransferFields": [
+						{ "From": "$.result.details[0].barcode", "To": "barcode" },
+						{ "From": "$.result.details[0].dt_delivery", "To": "dt_delivery" },
+						{ "From": "$.result.details[0].dt_order", "To": "dt_order" },
+						{ "From": "$.result.details[0].location", "To": "location" }
+					]
+				},
+				{
+					"URL": "http://predictor-api.ai:7055/predict/",
+					"Method": "POST",
+					"IncomingFields": [ "$.user_claim" ],
+					"ForwardFields": [ "text" ],
+					"TransferFields": [
+						{ "From": "$.type", "To": "predicted_type" }
+					]
+				},
+				{
+					"URL": "http://user-api.promo/api/v1/users",
+					"Method": "POST",
+					"IncomingFields": [ "$.user_id" ],
+					"ForwardFields": [ "[]" ],
+					"TransferFields": [
+						{ "From": "$[0].IsEmployee", "To": "IsEmployee" },
+						{ "From": "$[0].Troubles", "To": "Troubles" },
+						{ "From": "$[0].UnderControl", "To": "UnderControl" }
+					]
+				},
+				{
+					"URL": "http://user-api.promo/api/v1/users/{$.user_id}/sales",
+					"Method": "GET",
+					"HeadersToSend": [
+						{ "Header": "x-auth-service", "Value": "{{SERVICE_NAME}}" },
+						{ "Header": "x-auth-key", "Value": "{{SERVICE_KEY}}" }
+					],
+					"Condition": "@.IsEmployee == false",
+					"TransferFields": [
+						{ "From": "$.Bought", "To": "Bought" },
+						{ "From": "$.Rejected", "To": "Rejected" },
+						{ "From": "$.PositionsRejected", "To": "PositionsRejected" }
+					]
+				},
+				{
+					"URL": "https://customer-api.suppliers/api/note",
+					"Method": "GET",
+					"Condition": "@.IsEmployee == false",
+					"IncomingFields": [ "$.user_id" ],
+					"ForwardFields": [ "customerId" ],
+					"TransferFields": [
+						{ "From": "$.status", "To": "status" }
+					]
+				},
+				{
+					"URL": "http://user-api.promo/api/v1/users/{$.user_id}",
+					"Method": "GET",
+					"HeadersToSend": [
+						{ "Header": "x-auth-service", "Value": "{{SERVICE_NAME}}" },
+						{ "Header": "x-auth-key", "Value": "{{SERVICE_KEY}}" }
+					],
+					"Condition": "@.IsEmployee == false && @.Troubles == false && @.UnderControl == false",
+					"TransferFields": [
+						{ "From": "$.RegDate", "To": "RegDate" }
+					]
+				}
+			]
+		},
+		{
+			"Name": [
+				"delayed_claims/$"
+			],
+			"Convention": "POST",
+			"Postproc": [
+				{
+					"URL": "http://message-api.infra/problem/v1/execlude_from_comlaint/",
+					"Method": "POST",
+					"Condition": "@.status_ex > 1",
+					"IncomingFields": [ "$.id", "$.size_id", "$.order_id", "$.employee_id", "$.user_id" ],
+					"ForwardFields": [ "ext_id", "size_id", "order_id", "employee_id", "user_id" ]
+				},
+				{
+					"URL": "http://message-api.infra/problem/v1/problem_create",
+					"Method": "POST",
+					"Condition": "@.status_ex == 2",
+					"IncomingFields": [ "$.id", "$.size_id", "$.order_id", "$.employee_id", "~null", "$.user_claim", "$.user_id", "claim" ],
+					"ForwardFields": [ "ext_id", "size_id", "order_id", "employee_id", "is_incorrect_art", "comment", "user_id", "source" ]
+				},
+				{
+					"URL": "http://message-api.infra/problem/v1/problem_create",
+					"Method": "POST",
+					"Condition": "@.status_ex == 5 || @.status_ex == 6",
+					"IncomingFields": [ "$.id", "$.size_id", "$.order_id", "$.employee_id", "~true", "$.user_claim", "$.user_id", "claim" ],
+					"ForwardFields": [ "ext_id", "size_id", "order_id", "employee_id", "is_incorrect_art", "comment", "user_id", "source" ]
+				},
+				{
+					"URL": "http://message-api.infra/notifications/v1/message",
+					"Method": "POST",
+					"Condition": "@.status_ex == 1",
+					"IncomingFields": [ "$.id", "$.user_id", "$.params", "claims", "app_revocated_before_payment", "$.id" ],
+					"ForwardFields": [ "ext_id", "user_id", "params", "sender", "msg_type", "key" ],
+					"InArray": true
+				},
+				{
+					"URL": "http://message-api.infra/notifications/v1/message",
+					"Method": "POST",
+					"Condition": "@.status_ex > 1",
+					"IncomingFields": [ "$.id", "$.user_id", "$.params", "claims", "app_approved_before_payment", "$.id" ],
+					"ForwardFields": [ "ext_id", "user_id", "params", "sender", "msg_type", "key" ],
+					"InArray": true
+				}
+			]
+		},
+		{
+			"Name": [
+				"claim/order_update/$"
+			],
+			"Enhance": [
+				{
+					"URL": "http://message-api.infra/problem/v1/order_get_by_rid",
+					"Method": "POST",
+					"IncomingFields": [ "$.rid" ],
+					"ForwardFields": [ "rid" ],
+					"TransferFields": [
+						{ "From": "$.result.details[0].barcode", "To": "barcode" },
+						{ "From": "$.result.details[0].dt_delivery", "To": "dt_delivery" },
+						{ "From": "$.result.details[0].dt_order", "To": "dt_order" }
+					]
+				}
+			]
+		}
+	],
+	"Debug": 1
+}
