@@ -287,7 +287,7 @@ You can specify common parameters in `General` section. Fields which are not spe
 
 ## More examples
 
-See `examples/` directory for some real-life configuration files taken from producion environment.
+See `examples/` directory for some real-life configuration files taken from production environment.
 
 Disclaimer: All meaningful values in above examples have been replaced. All passwords, user names, server names and field names in above examples are entirely fictional.
 
