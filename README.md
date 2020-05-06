@@ -272,7 +272,7 @@ You can specify common parameters in `General` section. Fields which are not spe
 |`GET /api/v1/foo/bar/12` | --> | `foo_bar_get(0,12)` |
 |`GET /api/v1/foo/bar` | --> | `foo_bar_get(0,0)` |
 |`GET /api/v1/foo/bar/3?p=v` | --> | `foo_bar_get(0,3,'{"p":"v"}')` |
-|`POST /api/v1/foo/12/bar/` | --> | `foo_bar_ins(0,12,'{...}')` |
+|`POST /api/v1/foo/12/bar/` | --> | `foo_bar_ins(12,'{...}')` |
 |`PUT /api/v3/foo/bar/12` | --> | `foo_bar_upd_v3(0,12,'{...}')` |
 |`DELETE /api/v3/foo/bar/12` | --> | `foo_bar_del_v3(0,12)` |  
 
