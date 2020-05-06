@@ -78,7 +78,7 @@ $ curl http://localhost:8080/api/v1/hello?name=Mike
 {"greeting" : "Hello there, Mike!"}
 ```
 
-## Spec
+## Specification
 
 To run a PG-API you need to configure the following parts:
 - Service name and version
@@ -182,8 +182,6 @@ MethodConfig struct {
     Enhance      []Enhance    // enhance data using external service(s)
     Postproc     []Enhance    // data postprocessing using external service(s)
     HeadersPass  []HeaderPass // pass specified headers into proc
-	// runtime
-    NameMatch []*regexp.Regexp // method mask(s) -- runtime
 }
 ```
 
