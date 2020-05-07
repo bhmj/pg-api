@@ -303,7 +303,7 @@ Disclaimer: All meaningful values in above examples have been replaced. All pass
 - [x] CORS support
 - [x] headers passthrough
 - [x] key- of cookie based authorization
-- [ ] MinIO support
+- [x] MinIO support
 - [ ] Enhance[:].InArray
 - [ ] Enhance[:].HeadersToSend
 - [ ] tests!
