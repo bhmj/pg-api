@@ -15,7 +15,7 @@ const (
 	envConfigPath = "PG_API_CONFIG"
 )
 
-const appVersion string = "0.1.1"
+const appVersion string = "0.3.0"
 
 func main() {
 
