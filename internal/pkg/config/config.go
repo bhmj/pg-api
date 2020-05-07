@@ -122,6 +122,11 @@ type Enhance struct {
 		From string // jsonpath, based on root
 		To   string // jsonpath, based on current node
 	}
+	InArray       bool       // if true, ForwardFields should be passed as an array
+	HeadersToSend []struct { //
+		Header string // incoming header
+		Value  string // JSON FIELD
+	}
 }
 
 // HeaderPass defines Header -> FieldName mapping

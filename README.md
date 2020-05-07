@@ -307,8 +307,8 @@ Disclaimer: All meaningful values in above examples have been replaced. All pass
 - [x] headers passthrough
 - [x] key- of cookie based authorization
 - [x] MinIO support
-- [ ] Enhance[:].InArray
-- [ ] Enhance[:].HeadersToSend
+- [x] Enhance[:].InArray
+- [x] Enhance[:].HeadersToSend
 - [ ] tests!
 - [ ] more examples, explained
 - [ ] circuit breaker

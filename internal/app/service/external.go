@@ -9,6 +9,7 @@ import (
 	"math"
 	"net/http"
 	"reflect"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -61,7 +62,14 @@ func (s *service) queryExternal(enh config.Enhance, sourceJSON []byte, timeout t
 		}
 		if err == nil {
 			nonNilCount++
-			flds[enh.ForwardFields[i]] = value
+			rx, _ := regexp.Compile(`.+\[\]`)
+			fld := enh.ForwardFields[i]
+			if rx.MatchString(fld) {
+				key := fld[0 : len(fld)-2]
+				flds[key] = []interface{}{value}
+			} else {
+				flds[fld] = value
+			}
 		}
 	}
 	// If all fields in enh.IncomingFields are nil and enh.IncomingFields isn't empty
@@ -73,6 +81,8 @@ func (s *service) queryExternal(enh config.Enhance, sourceJSON []byte, timeout t
 	if enh.Method == "POST" {
 		if arrayMode {
 			body, err = json.Marshal([]interface{}{flds[enh.ForwardFields[0]]})
+		} else if enh.InArray {
+			body, err = json.Marshal([]interface{}{flds})
 		} else {
 			body, err = json.Marshal(flds)
 		}
@@ -92,6 +102,10 @@ func (s *service) queryExternal(enh config.Enhance, sourceJSON []byte, timeout t
 			q.Add(key, fmt.Sprintf("%v", value))
 		}
 		req.URL.RawQuery = q.Encode()
+	}
+
+	for i := 0; i < len(enh.HeadersToSend); i++ {
+		req.Header.Add(enh.HeadersToSend[i].Header, enh.HeadersToSend[i].Value)
 	}
 
 	var resp *http.Response
