@@ -11,7 +11,7 @@
             "mode": "auto",
             "program": "${fileDirname}",
             "env": {},
-            "args": ["/home/gurov/go/src/github.com/bhmj/pg-api/config/taxmon.json"]
+            "args": ["~/go/src/github.com/bhmj/pg-api/dummy.json"]
         }
     ]
 }
