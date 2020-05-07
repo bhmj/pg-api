@@ -1,9 +1,0 @@
-{
-    "HTTP": {
-        "Port": 8080
-    },
-    "Service": {
-        "Version": "1.0",
-        "Name": "dummy_service"
-    }
-}
