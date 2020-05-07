@@ -148,6 +148,7 @@ HTTP struct {
 | `/metrics` | Prometheus metrics |
 | `/ready` | Readiness probe for k8s. HTTP 200 for ok, 500 if not ready |
 | `/alive` | Liveness probe for k8s. HTTP 200 for ok, 500 if terminating |
+| `/{endpoint}/files/*` | File storage endpoint |
 | `/{endpoint}/v1/*` | Main endpoint (see Calling conventions below) |
 
 ### Database section
