@@ -4,12 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/bhmj/pg-api/internal/pkg/config"
 	"github.com/bhmj/pg-api/internal/pkg/db"
+	"github.com/bhmj/pg-api/internal/pkg/files"
 	"github.com/bhmj/pg-api/internal/pkg/log"
 	"github.com/bhmj/pg-api/internal/pkg/metrics"
 )
@@ -26,6 +28,7 @@ type service struct {
 	log       log.Logger
 	readiness Readiness
 	metrics   metrics.Metrics
+	f         files.FileService
 	// DB connection
 	dbr *sql.DB
 	dbw *sql.DB
@@ -39,7 +42,8 @@ type service struct {
 
 // Service implements service interface
 type Service interface {
-	Endpoint(w http.ResponseWriter, r *http.Request)
+	MainHandler(w http.ResponseWriter, r *http.Request)
+	FileHandler(w http.ResponseWriter, r *http.Request)
 }
 
 // NewService returns new service
@@ -60,26 +64,20 @@ func NewService(ctx context.Context, cfg *config.Config, log log.Logger, rd Read
 	} else {
 		srv.dbw = srv.dbr
 	}
+	srv.f = files.NewFileService(&cfg.Files, srv.dbw)
+
 	return srv
 }
 
-// Endpoint implements service logic
-func (s *service) Endpoint(w http.ResponseWriter, r *http.Request) {
-	t := time.Now()
-	var err error
+// prepareParams prepares parameters for query processing
+func (s *service) preprocess(w http.ResponseWriter, r *http.Request) (err error) {
 
-	// CORS
-	if r.Method == "OPTIONS" && s.cfg.HTTP.CORS {
-		s.allowCORS(w)
-		return
-	}
 	// method, paths
 	s.method = r.Method
 	s.vpath = r.URL.Path
 	if s.vpath[len(s.vpath)-1] != '/' {
 		s.vpath += "/"
 	}
-	defer s.metrics.Score(s.method, s.vpath, "total", t, &err)
 	// user ID if any
 	if s.userID, err = s.getUserID(r); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
@@ -110,7 +108,24 @@ func (s *service) Endpoint(w http.ResponseWriter, r *http.Request) {
 	if r.FormValue("latitude") != "" && r.FormValue("longitude") != "" {
 		s.method = "HIT"
 	}
+	return
+}
 
+// MainHandler implements service logic
+func (s *service) MainHandler(w http.ResponseWriter, r *http.Request) {
+	var err error
+	t := time.Now()
+	defer s.metrics.Score(s.method, s.vpath, "total", t, &err)
+	// CORS
+	if r.Method == "OPTIONS" && s.cfg.HTTP.CORS {
+		s.allowCORS(w)
+		return
+	}
+	// preprocess
+	if err = s.preprocess(w, r); err != nil {
+		return
+	}
+	// process
 	code, err := s.processQuery(w, r)
 	if err != nil {
 		http.Error(w, err.Error(), code)
@@ -118,4 +133,30 @@ func (s *service) Endpoint(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fmt.Fprintf(w, "r.URL.Path = %s\ns.vpath = %s, s.path = %s, s.method = %s\n", r.URL.Path, s.vpath, s.path, s.method)
+}
+
+// FileHandler implements file storage logic
+func (s *service) FileHandler(w http.ResponseWriter, r *http.Request) {
+	var err error
+	t := time.Now()
+	defer s.metrics.Score(s.method, s.vpath, "total", t, &err)
+	// CORS
+	if r.Method == "OPTIONS" && s.cfg.HTTP.CORS {
+		s.allowCORS(w)
+		return
+	}
+	// preprocess
+	if err = s.preprocess(w, r); err != nil {
+		return
+	}
+	// process
+	switch r.Method {
+	case "POST":
+		s.f.UploadFile(s.userID, w, r)
+	case "GET":
+		s.f.GetFile(s.userID, w, r)
+	default:
+		io.WriteString(w, "Only POST and GET are supported!")
+		return
+	}
 }

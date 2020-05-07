@@ -35,6 +35,17 @@ type HTTP struct {
 	CORS        bool     // allow CORS
 }
 
+// Files defines file storage parameters
+type Files struct {
+	Host       string
+	Key        string
+	Pass       string
+	UseSSL     bool
+	SizeLimit  int64
+	Procedure  string
+	Extensions []string
+}
+
 // Config contains all parameters
 type Config struct {
 	HTTP    HTTP     // HTTP params + API endpoint
@@ -68,14 +79,7 @@ type Config struct {
 	General MethodConfig
 	Methods []MethodConfig `json:",omitempty"`
 	//Pusher  pusher.Cfg
-	Files struct {
-		SizeLimit int64
-		Host      string
-		Key       string
-		Pass      string
-		UseSSL    bool
-		Procedure string
-	}
+	Files    Files
 	Debug    int
 	LogLevel uint // 0,1,2,3 = none, errors, warnings, verbose
 	// TODO: add pid settings

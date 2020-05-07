@@ -1,6 +1,8 @@
 package service
 
-import "net/http"
+import (
+	"net/http"
+)
 
 func (s *service) allowCORS(w http.ResponseWriter) {
 	xAuth := ""
