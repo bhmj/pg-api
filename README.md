@@ -207,15 +207,15 @@ HeaderPass struct {
 There are two possible calling conventions: `POST` and `CRUD`  
 
 `CRUD` (default):
-- GET method reads, POST, PUT, PATCH and DELETE write.
+- GET method read, POST, PUT, PATCH and DELETE write.
 - function suffixes: `get`, `ins`, `upd`, `pat` and `del` respectively.
 - intended for classic REST API (object manipulation)
 
 `POST`:
-- any HTTP method calls the same function. POST is preferred.
+- any HTTP method call the same function. POST is preferred.
 - as a result, no suffix on functions.
-- all calls are *write* calls (use *write* database connection).
-- intended for json-intensive API where any call may lead to write operations.
+- all calls are *write* calls (i.e. use *write* database connection).
+- intended for json-intensive API where any call can lead to write operations.
 
 #### External services 
 
@@ -227,14 +227,17 @@ Section example:
 ```Go
 "Enhance": [ // array: may contain many external service definitions
     {
-        "URL"            : "http://some.service/api/",    // external service URL
-        "Method"         : "POST",                        // POST or GET
-        "IncomingFields" : ["$.nm_id", "$.chrt_id"],      // fields from incoming query, jsonpath
-        "ForwardFields"  : ["nms", "chrts"],              // corresponding field names for external service, plain text
-        "TransferFields" : [                              // data transformation rules:
-            { "From": "$.result.details[0].shk_id",  "To": "shk_id" },      // From: jsonpath for received external data
-            { "From": "$.result.details[0].brand",   "To": "brand_name" },  // To: field name to be added to our json
-            { "From": "$.result.details[0].%2.size", "To": "size_name" }    // %2: you may use %x to use a ForwardField value in a jsonpath, by its ordinal number
+        "URL"            : "http://some.service/api/", // external service URL
+        "Method"         : "POST",                     // POST or GET
+        "IncomingFields" : ["$.nm_id", "$.chrt_id"],   // fields from incoming query (jsonpath)
+        "ForwardFields"  : ["nms", "chrts"],           // corresponding field names *for* external service
+        "TransferFields" : [                           // data transformation rules:
+            { "From": "$.result.details[0].shk_id",  "To": "shk_id" },
+            { "From": "$.result.details[0].brand",   "To": "brand_name" },
+            { "From": "$.result.details[0].%2.size", "To": "size_name" }
+            // From: jsonpath for received external data
+            // To: field name to be added to our json
+            // %2: you may use %x to use a ForwardField value in a jsonpath, by its ordinal number
         ]
     }
 ]
@@ -269,7 +272,7 @@ You can specify common parameters in `General` section. Fields which are not spe
 ### Translation rules in examples
 
 |**`CRUD`**  |  |  |
-|---|--|---|
+|:--|--|---|
 |`GET /api/v1/foo/7/bar/9`| --> |`foo_bar_get(7,9)` |
 |`GET /api/v1/foo/bar/12` | --> | `foo_bar_get(0,12)` |
 |`GET /api/v1/foo/bar` | --> | `foo_bar_get(0,0)` |
@@ -277,9 +280,7 @@ You can specify common parameters in `General` section. Fields which are not spe
 |`POST /api/v1/foo/12/bar/` | --> | `foo_bar_ins(12,'{...}')` |
 |`PUT /api/v3/foo/12/bar/34` | --> | `foo_bar_upd_v3(12,34,'{...}')` |
 |`DELETE /api/v3/foo/bar/12` | --> | `foo_bar_del_v3(0,12)` |  
-
-|**`POST`**  |  |  |
-|---|--|---|
+|  **`POST`**  |  |  |
 |`POST /api/v1/foo/bar`| --> |`foo_bar(0,'{...}')` |
 |`POST /api/v1/foo/9/bar`| --> |`foo_bar(9,'{...}')` |
 |`POST /api/v3/profile?entry=FOO` | --> | `profile_v3('{"entry":"FOO", ...}')` |
@@ -294,7 +295,7 @@ Disclaimer: All meaningful values in above examples have been replaced. All pass
 
 ## Changelog
 
-**0.3.0** (2020-05-08) -- First public opensource release.
+**0.3.0** (2020-05-07) -- First public opensource release.
 
 ## Roadmap
 
