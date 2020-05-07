@@ -266,22 +266,23 @@ You can specify common parameters in `General` section. Fields which are not spe
 
 ### Translation rules in examples
 
-|**`CRUD`** :  |  |  |
+|**`CRUD`**  |  |  |
 |---|--|---|
 |`GET /api/v1/foo/7/bar/9`| --> |`foo_bar_get(7,9)` |
 |`GET /api/v1/foo/bar/12` | --> | `foo_bar_get(0,12)` |
 |`GET /api/v1/foo/bar` | --> | `foo_bar_get(0,0)` |
 |`GET /api/v1/foo/bar/3?p=v` | --> | `foo_bar_get(0,3,'{"p":"v"}')` |
 |`POST /api/v1/foo/12/bar/` | --> | `foo_bar_ins(12,'{...}')` |
-|`PUT /api/v3/foo/bar/12` | --> | `foo_bar_upd_v3(0,12,'{...}')` |
+|`PUT /api/v3/foo/12/bar/34` | --> | `foo_bar_upd_v3(12,34,'{...}')` |
 |`DELETE /api/v3/foo/bar/12` | --> | `foo_bar_del_v3(0,12)` |  
 
-|**`POST`** :  |  |  |
+|**`POST`**  |  |  |
 |---|--|---|
 |`POST /api/v1/foo/bar`| --> |`foo_bar(0,'{...}')` |
 |`POST /api/v1/foo/9/bar`| --> |`foo_bar(9,'{...}')` |
 |`POST /api/v3/profile?entry=FOO` | --> | `profile_v3('{"entry":"FOO", ...}')` |
-|`GET /api/v1/foo/bar`<br/>GET method not recommended! | --> | `foo_bar(0,0,'{...}')`<br/>Note: extra ID from implicit bar/{id} |
+|`GET /api/v1/foo/bar` | --> | `foo_bar(0,0,'{...}')` |
+| NB: GET method not recommended | | |
 
 ## More examples
 
