@@ -161,14 +161,15 @@ DBGroup struct {    // Database connections
 ```Go
 Database struct {
     ConnString string  // instant connection string
-                       // OR
+    // --OR--
     Host       string  // parts
     Port       int     // to be
     Name       string  // combined
     User       string  // at
     Password   string  // runtime :)
+    //
     Schema     string  // schema containing all the API functions
-    MaxConn    int     // set this to limit the number of open connections
+    MaxConn    int     // (optional) set this to limit the number of open connections
 }
 ```
 ### Methods section (and their properties)
