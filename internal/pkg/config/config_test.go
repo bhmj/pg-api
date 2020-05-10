@@ -9,25 +9,25 @@ import (
 
 func Test_Read(t *testing.T) {
 	cfg := New()
-	// invalid json
-	dummy := strings.NewReader(`foo`)
-	err := cfg.readIO(dummy)
+	// Read
+	err := cfg.Read("*")
 	assert.NotEqual(t, nil, err)
-	// method defaults
-	dummy = strings.NewReader(`{
-		"HTTP":{"Endpoint":"api", "Port":8080},
-		"Service":{"Version":"1.0", "Name":"dummy"},
-		"Methods":[{}],
-	}`)
+	err = cfg.Read("")
+	assert.NotEqual(t, nil, err)
 }
 
 func Test_Validate(t *testing.T) {
-	// MaxConn
+	// invalid json + env substitution
 	cfg := New()
-	dummy := strings.NewReader(`{
+	dummy := strings.NewReader(`{{foo}}`)
+	err := cfg.readIO(dummy)
+	assert.NotEqual(t, nil, err)
+	// MaxConn
+	cfg = New()
+	dummy = strings.NewReader(`{
 		"DBGroup":{ "Read": { "MaxConn": -1 } }
 	}`)
-	err := cfg.readIO(dummy)
+	err = cfg.readIO(dummy)
 	assert.NotEqual(t, nil, err)
 	// Service.Version
 	cfg = New()
@@ -123,7 +123,7 @@ func Test_Validate(t *testing.T) {
 		"Service":{"Version":"1.0.0", "Name":"dummy"}
 	}`)
 	err = cfg.readIO(dummy)
-	assert.NotEqual(t, nil, err)
+	assert.Equal(t, nil, err)
 }
 
 func Test_GetDBWrite(t *testing.T) {

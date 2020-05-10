@@ -127,6 +127,7 @@ type Enhance struct {
 	}
 }
 
+// TransferFields contains external service variable mapping
 type TransferFields struct {
 	From string // jsonpath, based on root
 	To   string // jsonpath, based on current node

@@ -112,12 +112,12 @@ Thus, if the environment variable `SECRET` is set to `abc123`, the above line wi
 ```
 #### Minimal required fields
 
-`$.Service.Name` : for metrics  
-`$.Service.Version` : for distinction  
-`$.HTTP.Port` : port to listen to  
-`$.HTTP.Endpoint` : endpoint base  
-`$.DBGroup.Read.ConnString` : DB connection. *Write* queries will use the same.  
-`$.DBGroup.Read.Schema` : DB schema containing API functions
+`$.Service.Name` for metrics  
+`$.Service.Version` for distinction  
+`$.HTTP.Port` port to listen to  
+`$.HTTP.Endpoint` endpoint base  
+`$.DBGroup.Read.ConnString` DB connection. *Write* queries will use the same.  
+`$.DBGroup.Read.Schema` DB schema containing API functions
 
 #### Default values
 
@@ -146,8 +146,8 @@ HTTP struct {
 | Endpoint | Description |
 | --- | --- |
 | `/metrics` | Prometheus metrics |
-| `/ready` | Readiness probe for k8s. HTTP 200 for ok, 500 if not ready |
-| `/alive` | Liveness probe for k8s. HTTP 200 for ok, 500 if terminating |
+| `/ready` | Readiness handler for k8s. HTTP 200 for ok, 500 if not ready |
+| `/alive` | Liveness handler for k8s. HTTP 200 for ok, 500 if terminating |
 | `/{endpoint}/files/*` | File storage endpoint |
 | `/{endpoint}/v1/*` | Main endpoint (see Calling conventions below) |
 
