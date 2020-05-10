@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"reflect"
@@ -113,26 +114,38 @@ type MethodConfig struct {
 
 // Enhance methods
 type Enhance struct {
-	URL            string     // service URL
-	Method         string     // GET/POST
-	Condition      string     // Condition for invoking third-party service
-	IncomingFields []string   // fields from incoming query, jsonpath (ex: "$.nm_id")
-	ForwardFields  []string   // fields in forwarded query, plain text (ex: "ids")
-	TransferFields []struct { // response transfer: from received to target
-		From string // jsonpath, based on root
-		To   string // jsonpath, based on current node
-	}
-	InArray       bool       // if true, ForwardFields should be passed as an array
-	HeadersToSend []struct { //
+	URL            string           // service URL
+	Method         string           // GET/POST
+	Condition      string           // Condition for invoking third-party service
+	IncomingFields []string         // fields from incoming query, jsonpath (ex: "$.nm_id")
+	ForwardFields  []string         // fields in forwarded query, plain text (ex: "ids")
+	TransferFields []TransferFields // response transfer: from received to target
+	InArray        bool             // if true, ForwardFields should be passed as an array
+	HeadersToSend  []struct {       //
 		Header string // incoming header
 		Value  string // JSON FIELD
 	}
+}
+
+type TransferFields struct {
+	From string // jsonpath, based on root
+	To   string // jsonpath, based on current node
 }
 
 // HeaderPass defines Header -> FieldName mapping
 type HeaderPass struct {
 	Header    string
 	FieldName string
+}
+
+// New returns instance of config
+func New() *Config {
+	return &Config{
+		HTTP: HTTP{
+			Port: 80,
+		},
+		Debug: 2,
+	}
 }
 
 func (t *Config) getName(fieldName string) string {
@@ -298,11 +311,19 @@ func (t *Config) MethodProperties(method string, version int) MethodConfig {
 }
 
 // Read reads config
-func Read(fname string) (*Config, error) {
-	// pass secrets through env
-	conf, err := ioutil.ReadFile(fname)
+func (t *Config) Read(fname string) error {
+	f, err := os.Open(fname)
 	if err != nil {
-		return nil, err
+		return err
+	}
+	return t.readIO(f)
+}
+
+func (t *Config) readIO(f io.Reader) error {
+	// pass secrets through env
+	conf, err := ioutil.ReadAll(f)
+	if err != nil {
+		return err
 	}
 	rx := regexp.MustCompile(`{{(\w+)}}`)
 	for {
@@ -314,29 +335,35 @@ func Read(fname string) (*Config, error) {
 		conf = bytes.ReplaceAll(conf, matches[0], []byte(v))
 	}
 
-	var cfg Config
-	if err := json.Unmarshal(conf, &cfg); err != nil {
-		return nil, err
+	if err := json.Unmarshal(conf, &t); err != nil {
+		return err
 	}
 
 	// defaults and adjustments
-	for i, p := range cfg.Methods {
+	for i, p := range t.Methods {
 		// If version number of method p is not explicitly specified
 		if p.VersionFrom == 0 {
-			cfg.Methods[i].VersionFrom = 1
+			t.Methods[i].VersionFrom = 1
 		}
-		cfg.Methods[i].Convention = str.Scoalesce(p.Convention, defaultConvention)
-		cfg.Methods[i].ContentType = str.Scoalesce(p.ContentType, defaultContentType)
+		t.Methods[i].Convention = str.Scoalesce(p.Convention, defaultConvention)
+		t.Methods[i].ContentType = str.Scoalesce(p.ContentType, defaultContentType)
 	}
-	cfg.LogLevel = uint(cfg.Debug) // legacy
+	// general defaults
+	if t.General.VersionFrom == 0 {
+		t.General.VersionFrom = 1
+	}
+	t.General.Convention = str.Scoalesce(t.General.Convention, defaultConvention)
+	t.General.ContentType = str.Scoalesce(t.General.ContentType, defaultContentType)
 
-	if err = cfg.validate(); err != nil {
-		return nil, err
+	t.LogLevel = uint(t.Debug) // legacy
+
+	if err = t.validate(); err != nil {
+		return err
 	}
 
 	//logger.Log("msg", "debug level", "debug", settings.Debug)
 
-	return &cfg, nil
+	return nil
 }
 
 // GetDBWrite returns config for write db and bool indicating it is the same db as read db

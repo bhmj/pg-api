@@ -27,7 +27,8 @@ func main() {
 	fmt.Printf("Current directory is %s\n", env.GetCurrentDir())
 	fmt.Printf("Config path is %s\n", cpath)
 
-	cfg, err := config.Read(cpath)
+	cfg := config.New()
+	err := cfg.Read(cpath)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
