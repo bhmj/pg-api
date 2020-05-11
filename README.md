@@ -18,7 +18,7 @@ Main features:
 
 ## Getting started (in 5 simple steps)
 
-#### 1. Install
+### 1. Install
 
 ```bash
 $ go get github.com/bhmj/pg-api
@@ -26,7 +26,7 @@ $ cd cmd/pg-api
 $ go build .
 ```
 
-#### 2. Configure
+### 2. Configure
 
 create config file `dummy.json`:
 ```json
@@ -48,7 +48,7 @@ create config file `dummy.json`:
 }
 ```
 
-#### 3. Write some PostgreSQL code
+### 3. Write some PostgreSQL code
 
 ```SQL
 create or replace function api.hello_get(int, _data json)
@@ -64,21 +64,21 @@ end
 $$;
 ```
 
-#### 4. Run PG-API
+### 4. Run PG-API
 
 ```bash
 $ ./pg-api dummy.json
 ```
 
-#### 5. Your new API method is working
+### 5. Your new API method is working
 
 ```bash
 $ curl http://localhost:8080/api/v1/hello?name=Mike
 
 {"greeting" : "Hello there, Mike!"}
 ```
-
-## Specification
+--------------------------------------------------------------------
+## Configuration
 
 To run a PG-API you need to configure the following parts:
 - Service name and version
@@ -93,15 +93,90 @@ To run a PG-API you need to configure the following parts:
 - Authentication parameters (optional)
 - File upload (optional)
 
-### Config file
-
-You may:  
+To specify a config file you can:   
 a) set an environment variable `PG_API_CONFIG` with the config file path  
 b) specify a config file path as the (only) command line parameter
 
-#### Env variables substitution
+## PG-API endpoints
 
-You may use `{{THIS_SYNTAX}}` in config file to create a substitutions for env variables.  
+| Endpoint | Description |
+| --- | --- |
+| `/metrics` | Prometheus metrics |
+| `/ready` | Readiness handler for k8s. HTTP 200 for ok, 500 if not ready |
+| `/alive` | Liveness handler for k8s. HTTP 200 for ok, 500 if terminating |
+| `/{endpoint}/files/*` | File storage endpoint (see File operations below) |
+| `/{endpoint}/v1/*` | Main endpoint (see Calling conventions below) |
+
+## Query processing
+
+The order of query processing in PG-API is as follows:
+1. query is parsed and matching `Method` is found in the config file
+2. [preprocessing](#preprocessing-postprocessing) is executed if any item found in `Enhance` section
+3. SQL query is built based on query params and using calling con
+4. DB query is excecuted
+
+## Query parts
+
+`{method} domain:port / {endpoint} / {version} / {path} ? {params}`
+
+| Part | Format / Source | Description |
+|---|---|---|
+|**{method}** | `GET`, `POST`, `PUT`, `PATCH`, `DELETE` | available HTTP methods |
+|**{endpoint}** | `$.HTTP.Endpoint` | Arbitrary word. Usually "api" |
+|**{version}** | `v[0-9]+` | A mandatory version specifier |
+|**{path}** | `(/blabla/[0-9]*)+` | objects and their IDs |
+|**{params}** | `param=value & ...` | URL params |
+
+### Translation rules
+
+* **{endpoint}** is the base of all API URLs.  
+
+* **{path}** is split into array of **object** and (optional) **ID** pairs separated by a forward slash. **object**s are then merged into a string using underscore (`_`) to make a function name. **ID**s are passed as parameters into the function. Omitted **ID**s are treated as zeros.  
+
+* For CRUD: **{method}** translated into function suffix:
+  | method | suffix|
+  |---|---|
+  |`GET`|`_get`|
+  |`POST`|`_ins`|
+  |`PUT`|`_upd`|
+  |`PATCH`|`_pat`|
+  |`DELETE`|`_del`|
+* For POST: **{method}** is not used  
+
+* **{version}** is applied after suffix as `_vN` only if **version is greater than 
+1**.
+
+* **{params}** are converted into "key-value" pairs and passed in the last argument as a JSON object.
+
+* **{body}** (where applicable) must be a JSON object or array. If the body is an object, any params passed via URL are attached to the JSON (replacing same fields from body). If the body is an array, the parameters passed via URL are ignored. The resulting JSON is then passed into the DB function as a last parameter.
+
+### Translation rules in examples
+
+|**`CRUD`**  |  |  |
+|:--|--|---|
+|`GET /api/v1/foo/7/bar/9`| --> |`foo_bar_get(7,9,'{}')` |
+|`GET /api/v1/foo/bar/12` | --> | `foo_bar_get(0,12,'{}')` |
+|`GET /api/v1/foo/bar` | --> | `foo_bar_get(0,0,'{}')` |
+|`GET /api/v1/foo/bar/3?p=v` | --> | `foo_bar_get(0,3,'{"p":"v"}')` |
+|`POST /api/v1/foo/12/bar/` + `{...}` as body | --> | `foo_bar_ins(12,'{...}')` |
+|`PUT /api/v3/foo/12/bar/34` + `{...}` as body | --> | `foo_bar_upd_v3(12,34,'{...}')` |
+|`DELETE /api/v3/foo/bar/12` | --> | `foo_bar_del_v3(0,12)` |  
+|  **`POST`**  |  |  |
+|`POST /api/v1/foo/bar` + `{...}` as body| --> |`foo_bar(0,'{...}')` |
+|`POST /api/v1/foo/9/bar` + `{...}` as body| --> |`foo_bar(9,'{...}')` |
+|`POST /api/v3/profile?entry=FOO` + `{...}` as body | --> | `profile_v3('{"entry":"FOO", ...}')` |
+|`GET /api/v1/foo/bar` | --> | `foo_bar(0,0,'{}')` |
+| NB: GET method not recommended | | |
+
+--------------------------------------------------------------------
+
+## Config file details
+
+Config file is in JSON format. 
+
+### Env variables substitution
+
+You may use `{{THIS_SYNTAX}}` in config file to create a substitutions for environment variables.  
 Example:
 ```json
 { "Password": "{{SECRET}}" }
@@ -110,16 +185,18 @@ Thus, if the environment variable `SECRET` is set to `abc123`, the above line wi
 ```json
 { "Password": "abc123" }
 ```
-#### Minimal required fields
+### Minimal required fields
 
 `$.Service.Name` for metrics  
 `$.Service.Version` for distinction  
 `$.HTTP.Port` port to listen to  
 `$.HTTP.Endpoint` endpoint base  
 `$.DBGroup.Read.ConnString` DB connection. *Write* queries will use the same.  
-`$.DBGroup.Read.Schema` DB schema containing API functions
+`$.DBGroup.Read.Schema` DB schema containing API functions  
 
-#### Default values
+see examples/minimal.json
+
+### Default values
 
 Convention : `CRUD`  
 Content-Type : `application/json`  
@@ -128,6 +205,7 @@ Authorization : `none`
 Prometheus buckets : `1ms to 5s logarithmic scale`  
 Open connections : `unlimited`  
 Idle connections : `none`  
+LogLevel : `0` (none)  
 
 ### HTTP section
 ```Go
@@ -141,19 +219,9 @@ HTTP struct {
     CORS        bool     // allow CORS
 }
 ```
-#### PG-API endpoints
-
-| Endpoint | Description |
-| --- | --- |
-| `/metrics` | Prometheus metrics |
-| `/ready` | Readiness handler for k8s. HTTP 200 for ok, 500 if not ready |
-| `/alive` | Liveness handler for k8s. HTTP 200 for ok, 500 if terminating |
-| `/{endpoint}/files/*` | File storage endpoint |
-| `/{endpoint}/v1/*` | Main endpoint (see Calling conventions below) |
-
 ### Database section
 ```Go
-DBGroup struct {    // Database connections
+DBGroup struct {
     Read  Database  // Read database params
     Write Database  // Write database params (may omit if the same)
 }
@@ -168,7 +236,7 @@ Database struct {
     User       string  // at
     Password   string  // runtime :)
     //
-    Schema     string  // schema containing all the API functions
+    Schema     string  // (mandatory) schema containing all the API functions
     MaxConn    int     // (optional) set this to limit the number of open connections
 }
 ```
@@ -201,7 +269,6 @@ HeaderPass struct {
     FieldName string  // field name in our incoming JSON
 }
 ```
-
 #### Calling convention types
 
 There are two possible calling conventions: `POST` and `CRUD`  
@@ -217,9 +284,9 @@ There are two possible calling conventions: `POST` and `CRUD`
 - all calls are *write* calls (i.e. use *write* database connection).
 - intended for json-intensive API where any call can lead to write operations.
 
-#### External services 
+### External services 
 
-`Enhance` optional section in method definition contains external services info and a set of rules for data enrichment (only works for `POST` calling convention).
+`Enhance` optional section in method definition contains external services info and a set of rules for data enrichment (only applicable for `POST` calling convention).
 
 It is possible to get data from several services successively. The data received from one service will be available for sending in the next one and so on.
 
@@ -248,6 +315,8 @@ A reply from the external service is expected to be a JSON.
 
 The result of a processing will be a JSON extended with the data received from all the sources. Any errors during external service calling or data enrichment are ignored.
 
+#### Preprocessing / postprocessing
+
 #### Finalization function (optional)
 
 #### Authentication parameters (optional)
@@ -258,40 +327,15 @@ The result of a processing will be a JSON extended with the data received from a
 
 You can specify common parameters in `General` section. Fields which are not specified in `Methods` will be taken from `General`. All the methods which do not have matches in `Methods[:].Name` will be executed with `General` settings.
 
-## Calling conventions
-
-`domain:port / {endpoint} / {version} / {path} ? {params}`
-
-| Part | Format | Description |
-|---|---|---|
-|**{endpoint}** | `$.HTTP.Endpoint` | usually "api" |
-|**{version}** | `v[0-9]+` | a mandatory version specifier |
-|**{path}** | `(/blabla/[0-9]*)+` | objects and their IDs |
-|**{params}** | `param=value & ...` | URL params |
-
-### Translation rules in examples
-
-|**`CRUD`**  |  |  |
-|:--|--|---|
-|`GET /api/v1/foo/7/bar/9`| --> |`foo_bar_get(7,9)` |
-|`GET /api/v1/foo/bar/12` | --> | `foo_bar_get(0,12)` |
-|`GET /api/v1/foo/bar` | --> | `foo_bar_get(0,0)` |
-|`GET /api/v1/foo/bar/3?p=v` | --> | `foo_bar_get(0,3,'{"p":"v"}')` |
-|`POST /api/v1/foo/12/bar/` | --> | `foo_bar_ins(12,'{...}')` |
-|`PUT /api/v3/foo/12/bar/34` | --> | `foo_bar_upd_v3(12,34,'{...}')` |
-|`DELETE /api/v3/foo/bar/12` | --> | `foo_bar_del_v3(0,12)` |  
-|  **`POST`**  |  |  |
-|`POST /api/v1/foo/bar`| --> |`foo_bar(0,'{...}')` |
-|`POST /api/v1/foo/9/bar`| --> |`foo_bar(9,'{...}')` |
-|`POST /api/v3/profile?entry=FOO` | --> | `profile_v3('{"entry":"FOO", ...}')` |
-|`GET /api/v1/foo/bar` | --> | `foo_bar(0,0,'{...}')` |
-| NB: GET method not recommended | | |
+---------------------------------------------------------------------
 
 ## More examples
 
 See `examples/` directory for some real-life configuration files taken from production environment.
 
 Disclaimer: All meaningful values in above examples have been replaced. All passwords, user names, server names and field names in above examples are entirely fictional.
+
+---------------------------------------------------------------------
 
 ## Changelog
 
