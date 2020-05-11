@@ -18,7 +18,7 @@ Main features:
 
 ## Getting started (in 5 simple steps)
 
-### 1. Install
+#### 1. Install
 
 ```bash
 $ go get github.com/bhmj/pg-api
@@ -26,7 +26,7 @@ $ cd cmd/pg-api
 $ go build .
 ```
 
-### 2. Configure
+#### 2. Configure
 
 create config file `dummy.json`:
 ```json
@@ -48,7 +48,7 @@ create config file `dummy.json`:
 }
 ```
 
-### 3. Write some PostgreSQL code
+#### 3. Write some PostgreSQL code
 
 ```SQL
 create or replace function api.hello_get(int, _data json)
@@ -64,13 +64,13 @@ end
 $$;
 ```
 
-### 4. Run PG-API
+#### 4. Run PG-API
 
 ```bash
 $ ./pg-api dummy.json
 ```
 
-### 5. Your new API method is working
+#### 5. Your new API method is working
 
 ```bash
 $ curl http://localhost:8080/api/v1/hello?name=Mike
@@ -109,11 +109,26 @@ b) specify a config file path as the (only) command line parameter
 
 ## Query processing
 
-The order of query processing in PG-API is as follows:
+The order of query processing in PG-API is as follows:  
+
+If **NO** Finalizing function is specified:
+
 1. query is parsed and matching `Method` is found in the config file
-2. [preprocessing](#preprocessing-postprocessing) is executed if any item found in `Enhance` section
-3. SQL query is built based on query params and using calling con
+2. [preprocessing](#preprocessing--postprocessing) is executed if any item found in `Enhance` section
+3. SQL query is built based on query params and using calling convention
 4. DB query is excecuted
+5. The response is returned
+6. Postprocessing is executed in the background (if defined)
+
+If Finalizing function **IS** specified:
+
+1. query is parsed and matching `Method` is found in the config file
+3. SQL query is built based on query params and using calling convention
+4. DB query is excecuted
+5. [preprocessing](#preprocessing--postprocessing) is executed if any item found in `Enhance` section
+6. **Finalizing** SQL query is built based on query params and using calling convention
+7. DB query is excecuted **with the ID received from the step 4**
+8. Postprocessing is executed in the background (if defined)
 
 ## Query parts
 
