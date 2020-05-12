@@ -1,5 +1,6 @@
 *.exe
+main
+pg-api
 vendor/
 cmd/*
-*
-coverate.out
+coverage.out
