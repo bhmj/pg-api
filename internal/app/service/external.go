@@ -112,10 +112,12 @@ func (s *service) queryExternal(enh config.Enhance, sourceJSON []byte, timeout t
 
 	client := &http.Client{Timeout: timeout}
 	resp, err = client.Do(req)
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
 	if err != nil {
 		return
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		err = fmt.Errorf("%s: status %d", enh.URL, resp.StatusCode)
