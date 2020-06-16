@@ -70,7 +70,7 @@ func NewService(ctx context.Context, cfg *config.Config, log log.Logger, rd Read
 }
 
 // prepareParams prepares parameters for query processing
-func (s *service) preprocess(w http.ResponseWriter, r *http.Request) (err error) {
+func (s *service) prepare(w http.ResponseWriter, r *http.Request) (err error) {
 
 	// method, paths
 	s.method = r.Method
@@ -121,8 +121,7 @@ func (s *service) MainHandler(w http.ResponseWriter, r *http.Request) {
 		s.allowCORS(w)
 		return
 	}
-	// preprocess
-	if err = s.preprocess(w, r); err != nil {
+	if err = s.prepare(w, r); err != nil {
 		return
 	}
 	// process
@@ -145,8 +144,7 @@ func (s *service) FileHandler(w http.ResponseWriter, r *http.Request) {
 		s.allowCORS(w)
 		return
 	}
-	// preprocess
-	if err = s.preprocess(w, r); err != nil {
+	if err = s.prepare(w, r); err != nil {
 		return
 	}
 	// process

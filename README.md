@@ -116,7 +116,7 @@ If **NO** Finalizing function is specified:
 1. query is parsed and matching `Method` is found in the config file
 2. [preprocessing](#preprocessing--postprocessing) is executed if any item found in `Enhance` section
 3. SQL query is built based on query params and using calling convention
-4. DB query is excecuted
+4. DB query is executed
 5. The response is returned
 6. Postprocessing is executed in the background (if defined)
 
@@ -124,10 +124,10 @@ If Finalizing function **IS** specified:
 
 1. query is parsed and matching `Method` is found in the config file
 3. SQL query is built based on query params and using calling convention
-4. DB query is excecuted
+4. DB query is executed
 5. [preprocessing](#preprocessing--postprocessing) is executed if any item found in `Enhance` section
 6. **Finalizing** SQL query is built based on query params and using calling convention
-7. DB query is excecuted **with the ID received from the step 4**
+7. DB query is executed **with the ID received from the step 4**
 8. Postprocessing is executed in the background (if defined)
 
 ## Query parts
@@ -364,7 +364,7 @@ Disclaimer: All meaningful values in above examples have been replaced. All pass
 - [x] universal metrics
 - [x] CORS support
 - [x] headers passthrough
-- [x] key- of cookie based authorization
+- [x] key- or cookie-based authorization
 - [x] MinIO support
 - [x] Enhance[:].InArray
 - [x] Enhance[:].HeadersToSend

@@ -107,17 +107,16 @@ func (s *service) queryExternal(enh config.Enhance, sourceJSON []byte, timeout t
 	for i := 0; i < len(enh.HeadersToSend); i++ {
 		req.Header.Add(enh.HeadersToSend[i].Header, enh.HeadersToSend[i].Value)
 	}
+	req.Header.Set("Connection", "close")
 
 	var resp *http.Response
 
 	client := &http.Client{Timeout: timeout}
 	resp, err = client.Do(req)
-	if resp != nil && resp.Body != nil {
-		defer resp.Body.Close()
-	}
 	if err != nil {
 		return
 	}
+	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
 		err = fmt.Errorf("%s: status %d", enh.URL, resp.StatusCode)
