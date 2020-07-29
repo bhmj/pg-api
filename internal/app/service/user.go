@@ -41,19 +41,20 @@ func (s *service) wrappedGetUserID(r *http.Request) (uID int64, err error) {
 	items := strings.SplitN(val[s.cfg.Auth.Offset:], s.cfg.Auth.Separator, -1)
 	item := items[s.cfg.Auth.Part]
 
-	rows, err := s.dbr.Query("select "+s.cfg.Auth.Procedure+"($1)", item)
+	rows, err := s.dbr.Query("select * from "+s.cfg.Auth.Procedure+"($1)", item)
 	if err != nil {
 		return
 	}
 	defer rows.Close()
 
 	var userID sql.NullInt64
+	var code sql.NullInt64
 	for rows.Next() {
-		if err = rows.Scan(&userID); err != nil {
+		if err = rows.Scan(&userID, &code); err != nil {
 			return
 		}
 	}
-	if !userID.Valid {
+	if !userID.Valid || code.Int64 != 200 {
 		err = errors.New("authentication failed")
 	} else {
 		uID = userID.Int64
