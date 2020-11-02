@@ -53,7 +53,9 @@ func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int
 		}
 	}
 
+	// enhance if needed (only for standard scenario)
 	if len(parsed.FinalizeName) == 0 && len(parsed.Enhance) > 0 && s.method == "POST" {
+		// pre-processing
 		body = s.enhanceData(body, parsed.Enhance, 1*time.Second)
 	}
 
@@ -64,8 +66,10 @@ func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int
 		schema = s.cfg.DBGroup.Write.Schema
 	}
 
+	// prepare main function
 	query := s.prepareSQL(schema, parsed, string(body), 0)
 
+	// call main function
 	var result string
 	err = s.makeDBRequest(db, query, &result)
 	if err != nil {
@@ -93,12 +97,14 @@ func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int
 
 	rawResult := []byte(result)
 	if len(parsed.FinalizeName) == 0 {
+		// standard scenario: post-processing
 		if len(parsed.Postproc) > 0 && s.method == "POST" {
 			go func(rawRes []byte, postproc []config.Enhance) {
 				_ = s.enhanceData(rawRes, postproc, 60*time.Second)
 			}(rawResult, parsed.Postproc)
 		}
 	} else {
+		// fast scenario: return id from main function and do the pre- and post-processing in the background
 		go func(
 			rawBody []byte,
 			parsed ParsedURL,
@@ -108,9 +114,11 @@ func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int
 			var result string
 
 			if len(parsed.Enhance) > 0 && s.method == "POST" {
+				// pre-processing
 				body = s.enhanceData(rawBody, parsed.Enhance, 60*time.Second)
 			}
 
+			// finalizing query
 			query := s.prepareSQL(s.cfg.DBGroup.Write.Schema, parsed, string(body), id)
 			err = s.makeDBRequest(s.dbw, query, &result)
 			if err != nil {
@@ -119,6 +127,7 @@ func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int
 				s.log.L().Infof("finalizing query result: %s", result)
 			}
 			if len(parsed.Postproc) > 0 && s.method == "POST" {
+				// post-processing
 				_ = s.enhanceData([]byte(result), parsed.Postproc, 60*time.Second)
 			}
 		}(body, parsed, qRes.ID)
