@@ -46,7 +46,12 @@ func (s *app) Run() {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	// add handlers
-	svc := service.NewService(ctx, s.cfg, s.log, srv)
+	svc, err := service.NewService(ctx, s.cfg, s.log, srv)
+	if err != nil {
+		cancel()
+		s.log.L().Error(err)
+		return
+	}
 	mainHandler := svc.MainHandler
 	fileHandler := svc.FileHandler
 	if v != nil {
@@ -54,7 +59,7 @@ func (s *app) Run() {
 		fileHandler = v.Wrap(fileHandler)
 	}
 	srv.HandleFunc("/"+s.cfg.HTTP.Endpoint+"/", mainHandler)
-	srv.HandleFunc("/"+s.cfg.HTTP.Endpoint+"/file", fileHandler)
+	srv.HandleFunc("/"+s.cfg.HTTP.Endpoint+"/file/", fileHandler)
 	// run HTTP server
 	srv.Run(s.cfg.HTTP, s.log)
 	// signal processing

@@ -47,7 +47,7 @@ type Service interface {
 }
 
 // NewService returns new service
-func NewService(ctx context.Context, cfg *config.Config, log log.Logger, rd Readiness) Service {
+func NewService(ctx context.Context, cfg *config.Config, log log.Logger, rd Readiness) (Service, error) {
 	srv := &service{
 		ctx:       ctx,
 		cfg:       cfg,
@@ -56,21 +56,28 @@ func NewService(ctx context.Context, cfg *config.Config, log log.Logger, rd Read
 		metrics:   metrics.NewMetrics(cfg.Service.Name, cfg.Service.Prometheus.Buckets),
 	}
 	// prepare database connections
-	srv.dbr, _ = db.SetupDatabase(cfg.DBGroup.Read)
+	dbr, err := db.SetupDatabase(cfg.DBGroup.Read)
+	if err != nil {
+		return nil, err
+	}
+	srv.dbr = dbr
 	dbWriteSettings, same := cfg.GetDBWrite()
 	cfg.DBGroup.Write = dbWriteSettings
 	if !same {
-		srv.dbw, _ = db.SetupDatabase(dbWriteSettings)
+		srv.dbw, err = db.SetupDatabase(dbWriteSettings)
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		srv.dbw = srv.dbr
 	}
-	srv.f = files.NewFileService(&cfg.Files, srv.dbw)
+	srv.f, err = files.NewFileService(&cfg.Minio, srv.dbw)
 
-	return srv
+	return srv, err
 }
 
 // prepareParams prepares parameters for query processing
-func (s *service) prepare(w http.ResponseWriter, r *http.Request) (err error) {
+func (s *service) prepare(w http.ResponseWriter, r *http.Request, needVersion bool) (err error) {
 
 	// method, paths
 	s.method = r.Method
@@ -85,17 +92,21 @@ func (s *service) prepare(w http.ResponseWriter, r *http.Request) (err error) {
 	}
 	// API version & path
 	path := r.URL.Path[len(s.cfg.HTTP.Endpoint)+2:]
-	subs := regexpMap["version"].FindStringSubmatch(path)
-	if subs == nil {
-		http.Error(w, "API version not specified", http.StatusBadRequest)
-		return
+	if needVersion {
+		subs := regexpMap["version"].FindStringSubmatch(path)
+		if subs == nil {
+			http.Error(w, "API version not specified", http.StatusBadRequest)
+			return
+		}
+		s.version, _ = strconv.Atoi(subs[1])
+		if s.version == 0 {
+			http.Error(w, "invalid API version", http.StatusBadRequest)
+			return
+		}
+		s.path = path[len(subs[0]):]
+	} else {
+		s.path = path
 	}
-	s.version, _ = strconv.Atoi(subs[1])
-	if s.version == 0 {
-		http.Error(w, "invalid API version", http.StatusBadRequest)
-		return
-	}
-	s.path = path[len(subs[0]):]
 	if s.path == "" {
 		http.Error(w, "service method not specified", http.StatusBadRequest)
 		return
@@ -121,7 +132,7 @@ func (s *service) MainHandler(w http.ResponseWriter, r *http.Request) {
 		s.allowCORS(w)
 		return
 	}
-	if err = s.prepare(w, r); err != nil {
+	if err = s.prepare(w, r, true); err != nil {
 		return
 	}
 	// process
@@ -144,7 +155,7 @@ func (s *service) FileHandler(w http.ResponseWriter, r *http.Request) {
 		s.allowCORS(w)
 		return
 	}
-	if err = s.prepare(w, r); err != nil {
+	if err = s.prepare(w, r, false); err != nil {
 		return
 	}
 	// process

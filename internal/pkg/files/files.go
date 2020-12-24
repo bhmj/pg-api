@@ -28,7 +28,7 @@ const (
 
 type fileService struct {
 	mcli *minio.Client
-	cfg  *config.Files
+	cfg  *config.Minio
 	dbw  *sql.DB
 }
 
@@ -38,12 +38,18 @@ type FileService interface {
 	GetFile(userID int64, w http.ResponseWriter, r *http.Request)
 }
 
-// NewFileService return new file service interface
-func NewFileService(cfg *config.Files, db *sql.DB) FileService {
-	return &fileService{
-		cfg: cfg,
-		dbw: db,
+// NewFileService returns new file service interface
+func NewFileService(cfg *config.Minio, db *sql.DB) (FileService, error) {
+	// Initialize minio client
+	minioClient, err := minio.New(cfg.Host, cfg.AccessKey, cfg.SecretKey, cfg.UseSSL)
+	if err != nil {
+		return nil, err
 	}
+	return &fileService{
+		cfg:  cfg,
+		dbw:  db,
+		mcli: minioClient,
+	}, nil
 }
 
 // GetFile returns a file
@@ -95,9 +101,9 @@ func (s *fileService) UploadFile(userID int64, w http.ResponseWriter, r *http.Re
 		// Extensions whitelist
 		ext := filepath.Ext(fh[0].Filename)
 		ext = strings.Replace(ext, ".", "", -1)
-		if len(s.cfg.Extensions) > 0 {
+		if len(s.cfg.AllowedExt) > 0 {
 			match := false
-			for _, x := range s.cfg.Extensions {
+			for _, x := range s.cfg.AllowedExt {
 				if ext == x {
 					match = true
 					break

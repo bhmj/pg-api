@@ -36,15 +36,15 @@ type HTTP struct {
 	CORS        bool     // allow CORS
 }
 
-// Files defines file storage parameters
-type Files struct {
+// Minio defines file storage parameters
+type Minio struct {
 	Host       string
-	Key        string
-	Pass       string
+	AccessKey  string
+	SecretKey  string
 	UseSSL     bool
 	SizeLimit  int64
 	Procedure  string
-	Extensions []string
+	AllowedExt []string
 }
 
 // Config contains all parameters
@@ -80,7 +80,7 @@ type Config struct {
 	General MethodConfig
 	Methods []MethodConfig `json:",omitempty"`
 	//Pusher  pusher.Cfg
-	Files    Files
+	Minio    Minio
 	Debug    int
 	LogLevel uint // 0,1,2,3 = none, errors, warnings, verbose
 	// TODO: add pid settings
