@@ -71,7 +71,9 @@ func NewService(ctx context.Context, cfg *config.Config, log log.Logger, rd Read
 	} else {
 		srv.dbw = srv.dbr
 	}
-	srv.f, err = files.NewFileService(&cfg.Minio, srv.dbw)
+	if cfg.Minio.Host != "" {
+		srv.f, err = files.NewFileService(&cfg.Minio, srv.dbw)
+	}
 
 	return srv, err
 }
