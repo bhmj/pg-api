@@ -111,28 +111,24 @@ b) specify a config file path as the (only) command line parameter
 
 The order of query processing in PG-API is as follows:  
 
-If **NO** Finalizing function is specified:
+If **NO** Finalizing function is specified
 
-1. query is parsed and matching `Method` is found in the config file
-2. [preprocessing](#preprocessing--postprocessing) is executed if any item found in `Enhance` section
-3. SQL query is built based on query params and using calling convention
-4. DB query is executed
-5. The response is returned
-6. Postprocessing is executed in the background (if defined)
+This is relatively simple linear scenario: [preprocessing] -> function -> return -> [postprocessing]
 
-If Finalizing function **IS** specified:
+![Sync execution](./docs/Case 1.svg)
+<img src="./docs/Case 1.svg">
 
-1. query is parsed and matching `Method` is found in the config file
-3. SQL query is built based on query params and using calling convention
-4. DB query is executed
-5. [preprocessing](#preprocessing--postprocessing) is executed if any item found in `Enhance` section
-6. **Finalizing** SQL query is built based on query params and using calling convention
-7. DB query is executed **with the ID received from the step 4**
-8. Postprocessing is executed in the background (if defined)
+If Finalizing function **IS** specified
+
+This scenario is for quick object creation: init -> return -> [preprocessing] -> finalization -> [postprocessing]. It is useful when the preprocessing or object creation can take a considerable amount of time and the result of query (usually the object ID) is needed immediately. For example, when receiving a user review, you need to make a lot of additional processing like translation, user score, text and photo filtering and so on. This process is executed in background but the review ID should be returned immediately. Preprocessing and postprocessing stages use ID created at init state.
+
+![Async execution](./docs/Case 2.svg)
+<img src="./docs/Case 2.svg">
 
 ## Query parts
 
-`{method} domain:port / {endpoint} / {version} / {path} ? {params}`
+`{method} domain:port / {endpoint} / {version} / {path} ? {params}`  
+Example: `GET` `192.168.1.1:8080` / `api` / `v1` / `hello` ? `name=Mike`
 
 | Part | Format / Source | Description |
 |---|---|---|

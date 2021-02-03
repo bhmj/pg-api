@@ -7,7 +7,7 @@ import (
 // used regular expressions
 var regexpMap = map[string]*regexp.Regexp{
 	"parseUrl":            regexp.MustCompile(`(?i)(\w+)(?:/(\d+)?)`),                            // (word/)
-	"extServiceName":      regexp.MustCompile(`^.+://[^/]+/([^/?]+(?:/[^/?]+)*)/?(?:\?[^?]*)?$`), // something://FOO[/bar/baz]/[?some=params]
+	"extServiceName":      regexp.MustCompile(`^.+://[^/]+/([^/?]+(?:/[^/?]+)*)/?(?:\?[^?]*)?$`), // something://domain.com[/path/path]/[?some=params]
 	"splitExtServiceName": regexp.MustCompile(`\w+`),
 	"version":             regexp.MustCompile(`v(\d+)/`),
 }

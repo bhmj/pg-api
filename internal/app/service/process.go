@@ -64,7 +64,7 @@ func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int
 	// enhance if needed (only for standard scenario)
 	if len(parsed.FinalizeName) == 0 && len(parsed.Enhance) > 0 && s.method == "POST" {
 		// pre-processing
-		body = s.enhanceData(body, parsed.Enhance, 1*time.Second)
+		body = s.enhanceData(body, parsed.Enhance, 1*time.Second) // TODO: customize external service call timeout (config?)
 	}
 
 	db := s.dbr
