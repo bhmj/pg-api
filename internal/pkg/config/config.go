@@ -135,8 +135,9 @@ type TransferFields struct {
 
 // HeaderPass defines Header -> FieldName mapping
 type HeaderPass struct {
-	Header    string
-	FieldName string
+	Header       string
+	FieldName    string
+	ArgumentType string // empty or int|integer|bigint|float|number|string|text|varchar
 }
 
 // New returns instance of config
@@ -262,6 +263,7 @@ func (t *Config) MethodProperties(method string, version int) MethodConfig {
 	var bestVerIdx int   // bestVer index in t.Methods
 	var finName []string // Function name to be selected from FinalizeName; this name will be the only element in the slice
 	var finNameIdx int   // finName index in selected FinalizeName
+
 	// Other params default values
 	conv := t.General.Convention
 	ctype := t.General.ContentType

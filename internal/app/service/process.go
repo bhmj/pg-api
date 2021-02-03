@@ -20,6 +20,12 @@ type queryResult struct {
 	ID      int64  `json:"id"`
 }
 
+type Header struct {
+	Name  string
+	Value string
+	Type  string
+}
+
 func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int, err error) {
 	code = http.StatusBadRequest
 	// parse URL
@@ -31,8 +37,10 @@ func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int
 	body, _ := ioutil.ReadAll(r.Body)
 
 	// headers pass-through
+	var headers []Header
 	if len(parsed.HeadersPass) > 0 {
-		body = passHeaders(body, parsed.HeadersPass, r.Header)
+		headers = extractHeaders(parsed.HeadersPass, r.Header)
+		body = passImmediateHeaders(body, headers)
 	}
 
 	// enrich body JSON with URL params
@@ -67,7 +75,7 @@ func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int
 	}
 
 	// prepare main function
-	query := s.prepareSQL(schema, parsed, string(body), 0)
+	query := s.prepareSQL(schema, parsed, string(body), headers, 0)
 
 	// call main function
 	var result string
@@ -119,7 +127,7 @@ func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int
 			}
 
 			// finalizing query
-			query := s.prepareSQL(s.cfg.DBGroup.Write.Schema, parsed, string(body), id)
+			query := s.prepareSQL(s.cfg.DBGroup.Write.Schema, parsed, string(body), headers, id)
 			err = s.makeDBRequest(s.dbw, query, &result)
 			if err != nil {
 				s.log.L().Errorf("finalizing query: %s, error: %s", query, err.Error())
@@ -185,7 +193,23 @@ func (s *service) parseURL(urlpath string, version int, cfg *config.Config) (par
 	return parsed, err
 }
 
-func passHeaders(body []byte, headersToPass []config.HeaderPass, headers http.Header) []byte {
+func extractHeaders(headersToPass []config.HeaderPass, headers http.Header) []Header {
+	result := make([]Header, len(headersToPass))
+	for i := range headersToPass {
+		canonicalHeaderKey := http.CanonicalHeaderKey(headersToPass[i].Header)
+		val, found := headers[canonicalHeaderKey]
+		value := ""
+		if found {
+			value = val[0]
+		}
+		result[i].Name = headersToPass[i].FieldName
+		result[i].Type = headersToPass[i].ArgumentType
+		result[i].Value = value
+	}
+	return result
+}
+
+func passImmediateHeaders(body []byte, headers []Header) []byte {
 	if len(body) == 0 {
 		body = []byte{'{', '}'}
 	}
@@ -217,11 +241,10 @@ func passHeaders(body []byte, headersToPass []config.HeaderPass, headers http.He
 	}
 
 	body = body[:closing]
-	for i := range headersToPass {
-		s := http.CanonicalHeaderKey(headersToPass[i].Header)
-		if val, found := headers[s]; found {
+	for i := range headers {
+		if headers[i].Type == "" { // headers with empty type are considered to be passed as json fields
 			body = append(body, sep)
-			body = append(body, []byte(`"`+headersToPass[i].FieldName+`":"`+val[0]+`"`)...)
+			body = append(body, []byte(`"`+headers[i].Name+`":"`+headers[i].Value+`"`)...)
 			sep = ','
 		}
 	}

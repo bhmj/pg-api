@@ -3,6 +3,7 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -11,7 +12,7 @@ import (
 )
 
 // prepareSQL prepares SQL
-func (s *service) prepareSQL(schema string, parsed ParsedURL, body string, id int64) (query string) {
+func (s *service) prepareSQL(schema string, parsed ParsedURL, body string, headers []Header, id int64) (query string) {
 	suffix := suffixMap[s.method]
 	var functionName string
 	//id > 0 indicates that the finalizing SQL query is prepared
@@ -28,21 +29,24 @@ func (s *service) prepareSQL(schema string, parsed ParsedURL, body string, id in
 	}
 
 	// complete SQL query
-	var parameters []string
+	var arguments []string
 	if s.userID > 0 {
-		parameters = append(parameters, fmt.Sprintf("%d", s.userID))
+		arguments = append(arguments, fmt.Sprintf("%d", s.userID))
+	}
+	if len(headers) > 0 {
+		arguments = append(arguments, serializeHeaders(headers)...)
 	}
 	if len(parsed.ID) > 1 {
-		parameters = append(parameters, str.CommaSeparatedString(parsed.ID[0:len(parsed.ID)-1]))
+		arguments = append(arguments, str.CommaSeparatedString(parsed.ID[0:len(parsed.ID)-1]))
 	}
 	if suffix != "ins" {
-		parameters = append(parameters, fmt.Sprintf("%d", parsed.ID[len(parsed.ID)-1]))
+		arguments = append(arguments, fmt.Sprintf("%d", parsed.ID[len(parsed.ID)-1]))
 	}
 	if suffix != "del" && len(body) > 0 {
-		parameters = append(parameters, fmt.Sprintf("'%s'", strings.Replace(body, "'", "''", -1)))
+		arguments = append(arguments, fmt.Sprintf("'%s'", sanitizeString(body)))
 	}
 
-	functionParams := strings.Join(parameters, ", ")
+	functionParams := strings.Join(arguments, ", ")
 	if id > 0 {
 		functionParams = strconv.FormatInt(id, 10) + ", " + functionParams // Insert id into the first position of parameters list
 	}
@@ -70,4 +74,35 @@ func (s *service) makeDBRequest(db *sql.DB, query string, result *string) (err e
 	rows.Next()
 	err = rows.Scan(result)
 	return
+}
+
+func serializeHeaders(headers []Header) []string {
+	result := make([]string, 0)
+	numKey := map[string]bool{"int": true, "integer": true, "bigint": true, "float": true, "number": true}
+	strKey := map[string]bool{"text": true, "string": true, "varchar": true}
+	for i := range headers {
+		if headers[i].Type == "" {
+			continue
+		}
+		switch {
+		case numKey[strings.ToLower(headers[i].Type)]:
+			result = append(result, sanitizeNumber(headers[i].Value))
+		case strKey[strings.ToLower(headers[i].Type)]:
+			result = append(result, "'"+sanitizeString(headers[i].Value+"'"))
+		}
+	}
+	return result
+}
+
+func sanitizeString(s string) string {
+	return strings.Replace(s, "'", "''", -1)
+}
+
+func sanitizeNumber(s string) string {
+	reg := regexp.MustCompile("[^0-9Ee.-]+")
+	result := reg.ReplaceAllString(s, "")
+	if len(result) == 0 {
+		result = "0"
+	}
+	return result
 }
