@@ -163,7 +163,7 @@ If Finalizing function **IS** specified:
 
 * **{params}** are converted into "key-value" pairs and passed in the last argument as a JSON object.
 
-* **{body}** (where applicable) must be a JSON object or array. If the body is an object, any params passed via URL are attached to the JSON (replacing same fields from body). If the body is an array, the parameters passed via URL are ignored. The resulting JSON is then passed into the DB function as a last parameter.
+* **{body}** (where applicable) must be a JSON object or array. If the body is an object, any params passed via URL are attached to the JSON (replacing same fields from body). If the body is an array, the parameters passed via URL are ignored. The resulting JSON is then passed into the DB function as a last argument.
 
 ### Translation rules in examples
 
@@ -274,14 +274,15 @@ MethodConfig struct {
 
 Default content-type is `application/json` but it is possible to set any other, like `application/xml`, `text/html`, `text/plain` and also to include character set info if needed: `application/xml; charset="UTF-8"`
 
-#### Headers passthrough
+#### HTTP Headers passthrough
 
-It is possible to configure a passthrough for any number of headers (per method). A field name must be assigned for each header. Header field overwrites input (body or URL) field if names match.
+It is possible to configure a passthrough for any number of header values (per method or globally). `Header` specifies a name of the header. `ArgumentType` converts a value into function argument (numeric or text). Argument headers are passed first, before object IDs and data. Empty `ArgumentType` means that the value will be passed into function as a JSON field (in the last argument). In this case a `FieldName` must be assigned. Header field overwrites input (body or URL) field of the same name.
 
 ```Go
 HeaderPass struct {
-    Header    string  // header to pass
-    FieldName string  // field name in our incoming JSON
+    Header       string  // header to pass
+    FieldName    string  // field name in our incoming JSON
+    ArgumentType string  // empty or "int" or "float" or "string"
 }
 ```
 #### Calling convention types

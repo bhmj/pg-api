@@ -20,7 +20,19 @@
 		"Name": "dummy"
 	},
 	"General": {
-		"Convention": "POST"
+		"Convention": "POST",
+		"HeadersPass": [
+			{ "Header": "test-header", "FieldName": "my-value" }
+		]
 	},
+	"Methods": [
+		{
+			"Name":["foobar"],
+			"Convention":"GET",
+			"HeadersPass": [
+				{ "Header": "testing-head", "FieldName": "see-you" }
+			]
+		 }
+	],
 	"LogLevel": 3
 }
