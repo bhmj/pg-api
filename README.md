@@ -363,6 +363,7 @@ Disclaimer: All meaningful values in above examples have been replaced. All pass
 - [x] MinIO support
 - [x] Enhance[:].InArray
 - [x] Enhance[:].HeadersToSend
+- [x] YAML config
 - [ ] tests!
 - [ ] more examples, explained
 - [ ] circuit breaker

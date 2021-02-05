@@ -7,10 +7,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/bhmj/pg-api/internal/pkg/str"
 	"github.com/bhmj/pg-api/internal/pkg/tag"
@@ -313,16 +316,33 @@ func (t *Config) MethodProperties(method string, version int) MethodConfig {
 	return MethodConfig{FinalizeName: finName, Convention: conv, ContentType: ctype, Enhance: enhnc, Postproc: postpr, HeadersPass: hpass}
 }
 
+type configType string
+
+const (
+	jsonConfig configType = "json"
+	yamlConfig configType = "yaml"
+)
+
 // Read reads config
 func (t *Config) Read(fname string) error {
 	f, err := os.Open(fname)
 	if err != nil {
 		return err
 	}
-	return t.readIO(f)
+	return t.readIO(f, t.getConfigType(fname))
 }
 
-func (t *Config) readIO(f io.Reader) error {
+func (t *Config) getConfigType(fname string) configType {
+	println(filepath.Ext(fname))
+	switch filepath.Ext(fname) {
+	case ".yaml", ".yml":
+		return yamlConfig
+	default:
+		return jsonConfig
+	}
+}
+
+func (t *Config) readIO(f io.Reader, fileType configType) error {
 	// pass secrets through env
 	conf, err := ioutil.ReadAll(f)
 	if err != nil {
@@ -338,8 +358,17 @@ func (t *Config) readIO(f io.Reader) error {
 		conf = bytes.ReplaceAll(conf, matches[0], []byte(v))
 	}
 
-	if err := json.Unmarshal(conf, &t); err != nil {
-		return err
+	switch fileType {
+	case jsonConfig:
+		println("json config")
+		if err := json.Unmarshal(conf, &t); err != nil {
+			return err
+		}
+	case yamlConfig:
+		println("yaml config")
+		if err := yaml.Unmarshal(conf, &t); err != nil {
+			return err
+		}
 	}
 
 	// defaults and adjustments

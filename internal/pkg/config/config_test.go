@@ -20,42 +20,42 @@ func Test_Validate(t *testing.T) {
 	// invalid json + env substitution
 	cfg := New()
 	dummy := strings.NewReader(`{{foo}}`)
-	err := cfg.readIO(dummy)
+	err := cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// MaxConn
 	cfg = New()
 	dummy = strings.NewReader(`{
 		"DBGroup":{ "Read": { "MaxConn": -1 } }
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// Service.Version
 	cfg = New()
 	dummy = strings.NewReader(`{
 		"DBGroup":{ "Read": { "MaxConn": 0 } }
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// Service.Name 1
 	cfg = New()
 	dummy = strings.NewReader(`{
 		"Service":{"Version":"1.0.0"}
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// Service.Name 1
 	cfg = New()
 	dummy = strings.NewReader(`{
 		"Service":{"Version":"1.0.0", "Name":"abc def"}
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// HTTP.Endpoint
 	cfg = New()
 	dummy = strings.NewReader(`{
 		"Service":{"Version":"1.0.0", "Name":"dummy"}
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// Methods.Name: invalid regexp
 	cfg = New()
@@ -64,7 +64,7 @@ func Test_Validate(t *testing.T) {
 		"Service":{"Version":"1.0.0", "Name":"dummy"},
 		"Methods":[{"Name":["(**"]}]
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// Methods.Name: invalid regexp
 	cfg = New()
@@ -73,7 +73,7 @@ func Test_Validate(t *testing.T) {
 		"Service":{"Version":"1.0.0", "Name":"dummy"},
 		"Methods":[{"Name":["(**"]}]
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// Methods.FinalizeName != Methods.Name
 	cfg = New()
@@ -82,7 +82,7 @@ func Test_Validate(t *testing.T) {
 		"Service":{"Version":"1.0.0", "Name":"dummy"},
 		"Methods":[{"Name":["aaa"],"FinalizeName":["a","b"]}]
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// HTTP.UseSSL, no Cert
 	cfg = New()
@@ -90,7 +90,7 @@ func Test_Validate(t *testing.T) {
 		"HTTP":{"Endpoint":"api", "Port":8080, "UseSSL":true},
 		"Service":{"Version":"1.0.0", "Name":"dummy"}
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// HTTP.UseSSL, invalid Cert
 	cfg = New()
@@ -98,7 +98,7 @@ func Test_Validate(t *testing.T) {
 		"HTTP":{"Endpoint":"api", "Port":8080, "UseSSL":true, "SSLCert":"foo"},
 		"Service":{"Version":"1.0.0", "Name":"dummy"}
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// HTTP.UseSSL, no Key
 	cfg = New()
@@ -106,7 +106,7 @@ func Test_Validate(t *testing.T) {
 		"HTTP":{"Endpoint":"api", "Port":8080, "UseSSL":true, "SSLCert":"."},
 		"Service":{"Version":"1.0.0", "Name":"dummy"}
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// HTTP.UseSSL, invalid Key
 	cfg = New()
@@ -114,7 +114,7 @@ func Test_Validate(t *testing.T) {
 		"HTTP":{"Endpoint":"api", "Port":8080, "UseSSL":true, "SSLCert":".", "SSLKey":"foo"},
 		"Service":{"Version":"1.0.0", "Name":"dummy"}
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
 	assert.NotEqual(t, nil, err)
 	// complete
 	cfg = New()
@@ -122,7 +122,21 @@ func Test_Validate(t *testing.T) {
 		"HTTP":{"Endpoint":"api", "Port":8080},
 		"Service":{"Version":"1.0.0", "Name":"dummy"}
 	}`)
-	err = cfg.readIO(dummy)
+	err = cfg.readIO(dummy, jsonConfig)
+	assert.Equal(t, nil, err)
+}
+
+func Test_Yaml(t *testing.T) {
+	// simplest yaml config
+	cfg := New()
+	dummy := strings.NewReader(`---
+http:
+  endpoint: api
+  port: 8080
+service:
+  version: 1.0.0
+  name: dummy`)
+	err := cfg.readIO(dummy, yamlConfig)
 	assert.Equal(t, nil, err)
 }
 
@@ -152,7 +166,7 @@ func Test_MethodProperties(t *testing.T) {
 		"Service":{"Version":"1.0.0", "Name":"dummy"},
 		"Methods":[{"Name":["foo"], "FinalizeName":["fin"], "Enhance":[{}], "Postproc":[{}], "HeadersPass":[{"Header":"foo","Value":"bar"}]}]
 	}`)
-	err := cfg.readIO(dummy)
+	err := cfg.readIO(dummy, jsonConfig)
 	assert.Equal(t, err, nil)
 	cfg.MethodProperties("foo", 1)
 }
