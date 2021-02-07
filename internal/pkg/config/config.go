@@ -333,7 +333,6 @@ func (t *Config) Read(fname string) error {
 }
 
 func (t *Config) getConfigType(fname string) configType {
-	println(filepath.Ext(fname))
 	switch filepath.Ext(fname) {
 	case ".yaml", ".yml":
 		return yamlConfig
@@ -360,12 +359,10 @@ func (t *Config) readIO(f io.Reader, fileType configType) error {
 
 	switch fileType {
 	case jsonConfig:
-		println("json config")
 		if err := json.Unmarshal(conf, &t); err != nil {
 			return err
 		}
 	case yamlConfig:
-		println("yaml config")
 		if err := yaml.Unmarshal(conf, &t); err != nil {
 			return err
 		}

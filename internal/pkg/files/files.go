@@ -54,8 +54,6 @@ func NewFileService(cfg *config.Minio, db *sql.DB) (FileService, error) {
 
 // GetFile returns a file
 func (s *fileService) GetFile(userID int64, w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r.URL)
-
 	re := regexp.MustCompile(`/api/file/([^/]+)/(.*)`)
 	str := r.URL.String()
 	match := re.FindStringSubmatch(str)
@@ -206,8 +204,6 @@ func (s *fileService) storeMetadata(proc string, data map[string]interface{}) (p
 		return
 	}
 	query := "select * from " + proc + "($1)"
-	println(query)
-	println(string(b))
 	rows, err := s.dbw.Query(query, string(b))
 	if err != nil {
 		return
