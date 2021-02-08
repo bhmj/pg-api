@@ -21,7 +21,7 @@ PG-API это универсальный настраиваемый констр
 
 ```bash
 $ go get github.com/bhmj/pg-api
-$ cd cmd/pg-api
+$ cd pg-api/cmd/pg-api
 $ go build .
 ```
 
@@ -46,6 +46,19 @@ $ go build .
     }
 }
 ```
+... или `dummy.yaml`:
+```
+Service:
+  Version: 1.0.0
+  Name: dummy
+HTTP:
+  Port: 8080
+  Endpoint: api
+DBGroup:
+  Read:
+    ConnString: host=localhost port=5432 dbname=postgres user=postgres password=postgres sslmode=disable
+    Schema: api
+```
 
 #### 3. Пишем бизнес-логику на PL/pgSQL
 
@@ -66,7 +79,7 @@ $$;
 #### 4. Запускаем PG-API
 
 ```bash
-$ ./pg-api dummy.json
+$ ./pg-api dummy.yaml
 ```
 
 #### 5. Наш API работает
