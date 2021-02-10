@@ -17,16 +17,16 @@ type logger struct {
 // New returns new logger
 func New(level uint) (Logger, error) {
 	var config zap.Config
-	if level < 2 { // 0,1 = none,errors
+	if level == 0 {
 		config = zap.NewProductionConfig()
 	} else {
+		if level > 2 {
+			level = 2
+		}
 		config = zap.NewDevelopmentConfig()
 	}
 
-	if level > 3 {
-		level = 1
-	}
-	config.Level.SetLevel([]zapcore.Level{zap.FatalLevel, zap.ErrorLevel, zap.WarnLevel, zap.DebugLevel}[level])
+	config.Level.SetLevel([]zapcore.Level{zap.PanicLevel, zap.InfoLevel, zap.DebugLevel}[level])
 	config.Encoding = "json"
 
 	lg, err := config.Build()

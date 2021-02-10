@@ -210,6 +210,17 @@ func extractHeaders(headersToPass []config.HeaderPass, headers http.Header) []He
 }
 
 func passImmediateHeaders(body []byte, headers []Header) []byte {
+	hasBodyHeaders := false
+	for i := range headers {
+		if headers[i].Type == "" { // headers with empty type are considered to be passed as json fields
+			hasBodyHeaders = true
+			break
+		}
+	}
+	if !hasBodyHeaders {
+		return body
+	}
+
 	if len(body) == 0 {
 		body = []byte{'{', '}'}
 	}

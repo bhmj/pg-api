@@ -57,7 +57,7 @@ func (s *service) prepareSQL(schema string, parsed ParsedURL, body string, heade
 	}
 	query = "select * from " + schema + "." + functionName + ver + " (" + functionParams + ")"
 
-	s.log.L().Infof("SQL: %s", query)
+	s.log.L().Infof("%s", query)
 
 	return
 }
