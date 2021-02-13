@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/bhmj/pg-api/internal/pkg/config"
+	phttp "github.com/bhmj/pg-api/internal/pkg/http"
 	"github.com/bhmj/pg-api/internal/pkg/str"
 )
 
@@ -18,12 +19,6 @@ type queryResult struct {
 	ErrCode int    `json:"errcode"`  // synonyms
 	Error   string `json:"error"`
 	ID      int64  `json:"id"`
-}
-
-type Header struct {
-	Name  string
-	Value string
-	Type  string
 }
 
 func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int, err error) {
@@ -37,9 +32,9 @@ func (s *service) processQuery(w http.ResponseWriter, r *http.Request) (code int
 	body, _ := ioutil.ReadAll(r.Body)
 
 	// headers pass-through
-	var headers []Header
+	var headers []phttp.HeaderValue
 	if len(parsed.HeadersPass) > 0 {
-		headers = extractHeaders(parsed.HeadersPass, r.Header)
+		headers = phttp.ExtractHeaders(parsed.HeadersPass, r.Header)
 		body = passImmediateHeaders(body, headers)
 	}
 
@@ -193,23 +188,7 @@ func (s *service) parseURL(urlpath string, version int, cfg *config.Config) (par
 	return parsed, err
 }
 
-func extractHeaders(headersToPass []config.HeaderPass, headers http.Header) []Header {
-	result := make([]Header, len(headersToPass))
-	for i := range headersToPass {
-		canonicalHeaderKey := http.CanonicalHeaderKey(headersToPass[i].Header)
-		val, found := headers[canonicalHeaderKey]
-		value := ""
-		if found {
-			value = val[0]
-		}
-		result[i].Name = headersToPass[i].FieldName
-		result[i].Type = headersToPass[i].ArgumentType
-		result[i].Value = value
-	}
-	return result
-}
-
-func passImmediateHeaders(body []byte, headers []Header) []byte {
+func passImmediateHeaders(body []byte, headers []phttp.HeaderValue) []byte {
 	hasBodyHeaders := false
 	for i := range headers {
 		if headers[i].Type == "" { // headers with empty type are considered to be passed as json fields

@@ -72,7 +72,7 @@ func NewService(ctx context.Context, cfg *config.Config, log log.Logger, rd Read
 		srv.dbw = srv.dbr
 	}
 	if cfg.Minio.Host != "" {
-		srv.f, err = files.NewFileService(&cfg.Minio, srv.dbw)
+		srv.f, err = files.NewFileService(&cfg.Minio, srv.dbw, log, cfg.HTTP.Endpoint, cfg.General.HeadersPass)
 	}
 
 	return srv, err
@@ -163,9 +163,9 @@ func (s *service) FileHandler(w http.ResponseWriter, r *http.Request) {
 	// process
 	switch r.Method {
 	case "POST":
-		s.f.UploadFile(s.userID, w, r)
+		s.f.UploadFile(w, r)
 	case "GET":
-		s.f.GetFile(s.userID, w, r)
+		s.f.GetFile(w, r)
 	default:
 		io.WriteString(w, "Only POST and GET are supported!")
 		return

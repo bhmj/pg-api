@@ -41,13 +41,14 @@ type HTTP struct {
 
 // Minio defines file storage parameters
 type Minio struct {
-	Host       string
-	AccessKey  string
-	SecretKey  string
-	UseSSL     bool
-	SizeLimit  int64
-	Procedure  string
-	AllowedExt []string
+	Host          string
+	AccessKey     string
+	SecretKey     string
+	UseSSL        bool
+	SizeLimit     int64
+	Procedure     string
+	AllowedExt    []string
+	AllowedExtMap map[string]struct{} `json:"-" yaml:"-"`
 }
 
 // Config contains all parameters
@@ -80,9 +81,8 @@ type Config struct {
 		Part       int    // defines a substring part number
 		Procedure  string // user retrieval procedure as in "select user_id from Procedure(substring)")
 	}
-	General MethodConfig
-	Methods []MethodConfig `json:",omitempty"`
-	//Pusher  pusher.Cfg
+	General  MethodConfig
+	Methods  []MethodConfig `json:",omitempty"`
 	Minio    Minio
 	Debug    int
 	LogLevel uint // 0,1,2,3 = none, errors, warnings, verbose
@@ -385,6 +385,11 @@ func (t *Config) readIO(f io.Reader, fileType configType) error {
 	t.General.ContentType = str.Scoalesce(t.General.ContentType, defaultContentType)
 
 	t.LogLevel = uint(t.Debug) // legacy
+
+	t.Minio.AllowedExtMap = make(map[string]struct{})
+	for _, ext := range t.Minio.AllowedExt {
+		t.Minio.AllowedExtMap[ext] = struct{}{}
+	}
 
 	if err = t.validate(); err != nil {
 		return err

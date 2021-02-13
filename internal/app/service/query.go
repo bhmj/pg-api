@@ -8,11 +8,12 @@ import (
 	"strings"
 	"time"
 
+	phttp "github.com/bhmj/pg-api/internal/pkg/http"
 	"github.com/bhmj/pg-api/internal/pkg/str"
 )
 
 // prepareSQL prepares SQL
-func (s *service) prepareSQL(schema string, parsed ParsedURL, body string, headers []Header, id int64) (query string) {
+func (s *service) prepareSQL(schema string, parsed ParsedURL, body string, headers []phttp.HeaderValue, id int64) (query string) {
 	suffix := suffixMap[s.method]
 	var functionName string
 	//id > 0 indicates that the finalizing SQL query is prepared
@@ -76,7 +77,7 @@ func (s *service) makeDBRequest(db *sql.DB, query string, result *string) (err e
 	return
 }
 
-func serializeHeaders(headers []Header) []string {
+func serializeHeaders(headers []phttp.HeaderValue) []string {
 	result := make([]string, 0)
 	numKey := map[string]bool{"int": true, "integer": true, "bigint": true, "float": true, "number": true}
 	strKey := map[string]bool{"text": true, "string": true, "varchar": true}

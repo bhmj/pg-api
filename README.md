@@ -349,6 +349,8 @@ Disclaimer: All meaningful values in above examples have been replaced. All pass
 
 ## Changelog
 
+**0.4.1** (2021-02-13) -- HTTP headers can be passed to multipart/form data (for minio)
+
 **0.4.0** (2021-02-08) -- HTTP headers can be passed as function arguments
 
 **0.3.0** (2020-05-07) -- First public opensource release.

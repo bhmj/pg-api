@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -15,6 +14,8 @@ import (
 	"strings"
 
 	"github.com/bhmj/pg-api/internal/pkg/config"
+	phttp "github.com/bhmj/pg-api/internal/pkg/http"
+	"github.com/bhmj/pg-api/internal/pkg/log"
 	"github.com/minio/minio-go"
 )
 
@@ -27,173 +28,211 @@ const (
 )
 
 type fileService struct {
-	mcli *minio.Client
-	cfg  *config.Minio
-	dbw  *sql.DB
+	mcli        *minio.Client
+	cfg         *config.Minio
+	dbw         *sql.DB
+	log         log.Logger
+	base        string
+	headersPass []config.HeaderPass
 }
 
 // FileService implements file service API
 type FileService interface {
-	UploadFile(userID int64, w http.ResponseWriter, r *http.Request)
-	GetFile(userID int64, w http.ResponseWriter, r *http.Request)
+	UploadFile(w http.ResponseWriter, r *http.Request)
+	GetFile(w http.ResponseWriter, r *http.Request)
 }
 
 // NewFileService returns new file service interface
-func NewFileService(cfg *config.Minio, db *sql.DB) (FileService, error) {
+func NewFileService(cfg *config.Minio, db *sql.DB, log log.Logger, base string, headersPass []config.HeaderPass) (FileService, error) {
 	// Initialize minio client
 	minioClient, err := minio.New(cfg.Host, cfg.AccessKey, cfg.SecretKey, cfg.UseSSL)
 	if err != nil {
 		return nil, err
 	}
 	return &fileService{
-		cfg:  cfg,
-		dbw:  db,
-		mcli: minioClient,
+		log:         log,
+		cfg:         cfg,
+		dbw:         db,
+		mcli:        minioClient,
+		base:        base,
+		headersPass: headersPass,
 	}, nil
 }
 
 // GetFile returns a file
-func (s *fileService) GetFile(userID int64, w http.ResponseWriter, r *http.Request) {
-	re := regexp.MustCompile(`/api/file/([^/]+)/(.*)`)
+func (s *fileService) GetFile(w http.ResponseWriter, r *http.Request) {
+	re := regexp.MustCompile(s.base + `/file/([^/]+)/(.*)`)
 	str := r.URL.String()
 	match := re.FindStringSubmatch(str)
 	if len(match) != 3 {
 		w.WriteHeader(400)
 		w.Write([]byte(`Invalid path`))
+		s.log.L().Error("minio get %s: invalid path", str)
 		return
 	}
 	bucketName := match[1]
 	objectName, err := url.QueryUnescape(match[2])
 	if err != nil {
-		fmt.Println(err)
+		s.log.L().Errorf("minio get %s: could not unescape (%s)", match[2], err.Error())
 		return
 	}
 
 	object, err := s.mcli.GetObject(bucketName, objectName, minio.GetObjectOptions{})
 	if err != nil {
-		fmt.Println(err)
+		s.log.L().Errorf("minio get %s/%s: %s", bucketName, objectName, err.Error())
 		return
 	}
 	io.Copy(w, object)
+	s.log.L().Infof("minio get %s/%s", bucketName, objectName)
 }
 
-func (s *fileService) UploadFile(userID int64, w http.ResponseWriter, r *http.Request) {
-	//
-	r.ParseMultipartForm(5 * MB)
+func (s *fileService) UploadFile(w http.ResponseWriter, r *http.Request) {
+	// TODO: choose optimal maxMemory value
+	r.ParseMultipartForm(10 * MB)
 
-	data := mergeValues(userID, r.MultipartForm)
+	hv := phttp.ExtractHeaders(s.headersPass, r.Header) // extract specific HTTP headers
+	data := mergeValues(r.MultipartForm, hv)            // merge them to multipart/form data
 
-	if data["category"] == nil {
-		w.WriteHeader(400)
-		w.Write([]byte(`Required field "category" is missing`))
-		return
+	type FileDescriptor struct {
+		Name   string
+		Size   int64
+		Ext    string
+		Header *multipart.FileHeader
 	}
 
-	var fpath string
 	var totalSize int64
-
+	files := []FileDescriptor{}
+	fileList := []string{}
 	for _, fh := range r.MultipartForm.File {
 		if len(fh) == 0 {
 			continue
 		}
+		// TODO: support multiple similarly named files
+		fname := fh[0].Filename
+		ext := strings.Replace(filepath.Ext(fname), ".", "", -1)
+		size := fh[0].Size
+		totalSize += size
+		files = append(files, FileDescriptor{Name: fname, Size: size, Ext: ext, Header: fh[0]})
+		fileList = append(fileList, fname)
+	}
+
+	ErrorResponse := func(code int, msg string, str string) {
+		w.WriteHeader(code)
+		w.Write([]byte(fmt.Sprintf(`{"code":%d, "msg": "%s", "descr": "%s"}`, code, msg, str)))
+		s.log.L().Error("minio post [%s]: %s", strings.Join(fileList, ","), str)
+	}
+
+	if len(files) == 0 {
+		ErrorResponse(400, "no files", "No files in multipart/form-data")
+
+		return
+	}
+
+	if data["bucket"] == nil && data["category"] == nil {
+		ErrorResponse(400, "no bucket", "Required multipart field 'bucket' is missing")
+
+		return
+	}
+
+	// check total size
+	if totalSize > s.cfg.SizeLimit {
+		ErrorResponse(400, "total size", fmt.Sprintf("Total file size %d is beyond limit on single upload (%d)", totalSize, s.cfg.SizeLimit))
+
+		return
+	}
+
+	var fpaths []string
+
+	for _, f := range files {
 		// Extensions whitelist
-		ext := filepath.Ext(fh[0].Filename)
-		ext = strings.Replace(ext, ".", "", -1)
-		if len(s.cfg.AllowedExt) > 0 {
-			match := false
-			for _, x := range s.cfg.AllowedExt {
-				if ext == x {
-					match = true
-					break
-				}
-			}
-			if !match {
-				w.WriteHeader(415)
-				w.Write([]byte(`{"code":415, "msg":"bad ext", "descr":"File extention is not in white list"}`))
-				return
-			}
-		}
-		// check file size
-		if fh[0].Size > s.cfg.SizeLimit {
-			w.WriteHeader(413)
-			w.Write([]byte(`{"code":413, "msg": "file size", "descr": "File size is beyond limit"}`))
+		if _, found := s.cfg.AllowedExtMap[f.Ext]; !found && len(s.cfg.AllowedExt) > 0 {
+			ErrorResponse(415, "bad ext", fmt.Sprintf("File extension '%s' is not allowed by config", f.Ext))
+
 			return
 		}
-		totalSize += fh[0].Size
-		// check total files' size
-		if totalSize > s.cfg.SizeLimit {
-			w.WriteHeader(413)
-			w.Write([]byte(`{"code":413, "msg": "total size", "descr": "Total file size is beyond limit"}`))
+		// check file size
+		if f.Size > s.cfg.SizeLimit {
+			ErrorResponse(413, "file size", fmt.Sprintf("File '%s': size %d is beyond limit (%d)", f.Name, f.Size, s.cfg.SizeLimit))
+
 			return
 		}
 		// read file
-		f, err := fh[0].Open()
+		file, err := f.Header.Open()
 		if err != nil {
-			w.WriteHeader(400)
-			w.Write([]byte(`Invalid file in multipart/form-data`))
+			ErrorResponse(400, "read error", fmt.Sprintf("Error reading file '%s': %s", f.Name, err.Error()))
+
 			return
 		}
 
 		// store
-		cat := data["category"].(string)
-		data["filename"] = fh[0].Filename
-		data["filesize"] = fh[0].Size
-		data["fileext"] = filepath.Ext(fh[0].Filename)
+		if data["category"] == nil {
+			data["category"] = data["bucket"]
+		}
+		bucket := data["category"].(string)
+		data["filename"] = f.Name
+		data["filesize"] = f.Size
+		data["fileext"] = f.Ext
 		prefix, err := s.storeMetadata(s.cfg.Procedure, data)
 		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(err.Error()))
+			ErrorResponse(500, "db error", fmt.Sprintf("Error storing metadata on file '%s': %s", f.Name, err.Error()))
+
 			return
 		}
 
-		err = s.minioUpload(cat, prefix+fh[0].Filename, fh[0].Header.Get("Content-Type"), f, fh[0].Size)
+		err = s.minioUpload(bucket, prefix+f.Name, f.Header.Header.Get("Content-Type"), file, f.Size)
 		if err != nil {
-			w.WriteHeader(500)
-			w.Write([]byte(`File storage error: ` + err.Error()))
+			ErrorResponse(500, "minio error", fmt.Sprintf("Error while storing file '%s' in minio: %s", f.Name, err.Error()))
+
 			return
 		}
 
-		fpath = "/api/file/" + cat + "/" + prefix + fh[0].Filename
+		fpaths = append(fpaths, "/"+s.base+"/file/"+bucket+"/"+prefix+f.Name)
 	}
 
+	str := fmt.Sprintf(`{"file":"%s", "files":["%s"], "status":"ok"}`,
+		fpaths[0],
+		strings.Join(fpaths, `","`),
+	)
 	w.Header().Set("Content-Type", "text/json; charset=utf-8")
-	w.Write([]byte(`{"file":"` + strings.Replace(fpath, `"`, `\"`, -1) + `", "status":"ok"}`))
+	w.Write([]byte(str))
 }
 
-func (s *fileService) minioUpload(cat string, fname string, contentType string, f io.Reader, size int64) error {
+func (s *fileService) minioUpload(bucket string, fname string, contentType string, f io.Reader, size int64) error {
 
-	// Make a new bucket called mymusic.
-	bucketName := cat
 	location := "us-east-1"
 
-	err := s.mcli.MakeBucket(bucketName, location)
+	err := s.mcli.MakeBucket(bucket, location)
 	if err != nil {
 		// Check to see if we already own this bucket (which happens if you run this twice)
-		exists, errBucketExists := s.mcli.BucketExists(bucketName)
+		exists, errBucketExists := s.mcli.BucketExists(bucket)
 		if errBucketExists == nil && exists {
-			fmt.Printf("We already own %s\n", bucketName)
+			fmt.Printf("We already own %s\n", bucket)
 		} else {
 			return err
 		}
 	} else {
-		fmt.Printf("Successfully created %s\n", bucketName)
+		fmt.Printf("Successfully created %s\n", bucket)
 	}
 
-	n, err := s.mcli.PutObject(bucketName, fname, f, size, minio.PutObjectOptions{ContentType: contentType})
+	n, err := s.mcli.PutObject(bucket, fname, f, size, minio.PutObjectOptions{ContentType: contentType})
 	if err != nil {
-		log.Fatalln(err)
+		s.log.L().Fatal(err)
 	}
 	fmt.Printf("%s: %d/%d bytes written\n", fname, n, size)
 
 	return nil
 }
 
-func mergeValues(userID int64, f *multipart.Form) map[string]interface{} {
+func mergeValues(f *multipart.Form, hv []phttp.HeaderValue) map[string]interface{} {
 	m := make(map[string]interface{})
 	for k, v := range f.Value {
 		m[k] = strings.Join(v, "\n")
 	}
-	m["user_id"] = userID
+	for _, h := range hv {
+		if h.Name != "" {
+			m[h.Name] = h.Value
+		}
+	}
 	return m
 }
 
