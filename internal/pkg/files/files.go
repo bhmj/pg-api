@@ -165,10 +165,10 @@ func (s *fileService) UploadFile(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// store
-		if data["category"] == nil {
-			data["category"] = data["bucket"]
+		if data["bucket"] == nil {
+			data["bucket"] = data["category"]
 		}
-		bucket := data["category"].(string)
+		bucket := data["bucket"].(string)
 		data["filename"] = f.Name
 		data["filesize"] = f.Size
 		data["fileext"] = f.Ext
@@ -249,14 +249,16 @@ func (s *fileService) storeMetadata(proc string, data map[string]interface{}) (p
 	}
 	defer rows.Close()
 
-	var errMsg string
+	var nilPrefix sql.NullString
+	var nilErr sql.NullString
 	for rows.Next() {
-		err = rows.Scan(&prefix, &errMsg)
+		err = rows.Scan(&nilPrefix, &nilErr)
 		if err != nil {
 			return
 		}
-		if len(errMsg) > 0 {
-			err = errors.New(errMsg)
+		prefix = nilPrefix.String
+		if nilErr.Valid && len(nilErr.String) > 0 {
+			err = errors.New(nilErr.String)
 		}
 	}
 
