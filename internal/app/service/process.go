@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bhmj/pg-api/internal/pkg/config"
@@ -234,7 +235,7 @@ func passImmediateHeaders(body []byte, headers []phttp.HeaderValue) []byte {
 	for i := range headers {
 		if headers[i].Type == "" { // headers with empty type are considered to be passed as json fields
 			body = append(body, sep)
-			body = append(body, []byte(`"`+headers[i].Name+`":"`+headers[i].Value+`"`)...)
+			body = append(body, []byte(`"`+headers[i].Name+`":"`+strings.ReplaceAll(headers[i].Value, `"`, `\"`)+`"`)...)
 			sep = ','
 		}
 	}
