@@ -1,4 +1,5 @@
 *.exe
+build/
 main
 pg-api
 vendor/
