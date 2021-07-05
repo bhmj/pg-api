@@ -1,5 +1,7 @@
 # PG-API
 
+[Russian](README.ru.md)
+
 ## What is it?
 
 PG-API is a universal highly customizable REST API constructor for PostgreSQL.
