@@ -8,7 +8,7 @@ PG-API is a universal highly customizable REST API constructor for PostgreSQL.
 With it, you can build a sophisticated API for a PostgreSQL database and implement business logic using stored procedures (functions).  
 
 Main features:  
- - GET/POST/PUT/PATCH/DELETE queries
+ - GET / POST / PUT / PATCH / DELETE queries
  - Key or cookie-based authorization
  - per-method versioning
  - ability to pass HTTP headers into function
