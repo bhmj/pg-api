@@ -163,7 +163,7 @@ Example: `GET` `192.168.1.1:8080` / `api` / `v1` / `hello` ? `name=Mike`
 
 ### Translation rules in examples
 
-|**`CRUD`**  |  |  |
+|**`CRUD-type`**  |  |  |
 |:--|--|---|
 |`GET /api/v1/foo/7/bar/9`| --> |`foo_bar_get(7,9,'{}')` |
 |`GET /api/v1/foo/bar/12` | --> | `foo_bar_get(0,12,'{}')` |
@@ -172,12 +172,12 @@ Example: `GET` `192.168.1.1:8080` / `api` / `v1` / `hello` ? `name=Mike`
 |`POST /api/v1/foo/12/bar/` + `{...}` as body | --> | `foo_bar_ins(12,'{...}')` |
 |`PUT /api/v3/foo/12/bar/34` + `{...}` as body | --> | `foo_bar_upd_v3(12,34,'{...}')` |
 |`DELETE /api/v3/foo/bar/12` | --> | `foo_bar_del_v3(0,12)` |  
-|  **`POST`**  |  |  |
+|  **`POST-type`**  |  |  |
 |`POST /api/v1/foo/bar` + `{...}` as body| --> |`foo_bar(0,'{...}')` |
 |`POST /api/v1/foo/9/bar` + `{...}` as body| --> |`foo_bar(9,'{...}')` |
 |`POST /api/v3/profile?entry=FOO` + `{...}` as body | --> | `profile_v3('{"entry":"FOO", ...}')` |
 |`GET /api/v1/foo/bar` | --> | `foo_bar(0,0,'{}')` |
-| NB: GET method not recommended | | |
+| NB: GET method not recommended for POST-type queries | | |
 
 --------------------------------------------------------------------
 
