@@ -329,6 +329,7 @@ func (t *Config) Read(fname string) error {
 	if err != nil {
 		return err
 	}
+	defer f.Close()
 	return t.readIO(f, t.getConfigType(fname))
 }
 
